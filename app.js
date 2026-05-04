@@ -6,13 +6,13 @@
 
 // ─── CONFIGURACIÓN ──────────────────────────────────────────
 const CONFIG = {
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyAK0GSZdPZ4-bFhfX50ggMoLpxwh6GQKKW_TUm475N3vixMREmA1gcRBllglZ6OsJN/exec',
-  DB_NAME: 'LogisticaZapotalDB',
-  DB_VERSION: 1,
-  SYNC_INTERVAL: 30000,  // cada 30 seg cuando hay conexión
-  MEDIDAS_CASING: ['5 1/2', '9 5/8', '13 3/8'],
-  PESOS_CASING: [15.5, 17, 20, 32.3, 40],
-  PASILLOS: ['1.1', '1.2', '1.3', '1.4'],
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyDWN6p_8PMfkvxbWaSMzs3x0P_JHwIOHOXkHUc3NI0pGONOivPKtxvKjdtMDY_TKcO/exec',
+  DB_NAME:         'LogisticaZapotalDB',
+  DB_VERSION:      1,
+  SYNC_INTERVAL:   30000,  // cada 30 seg cuando hay conexión
+  MEDIDAS_CASING:  ['5 1/2', '9 5/8', '13 3/8'],
+  PESOS_CASING:    [15.5, 17, 20, 32.3, 40],
+  PASILLOS:        ['1.1', '1.2', '1.3', '1.4'],
 };
 
 // ─── BASE DE DATOS INDEXEDDB ─────────────────────────────────
@@ -31,9 +31,9 @@ class DB {
         // Cola de sincronización
         if (!db.objectStoreNames.contains('sync_queue')) {
           const cola = db.createObjectStore('sync_queue', { keyPath: 'uuid' });
-          cola.createIndex('tipo', 'tipo', { unique: false });
+          cola.createIndex('tipo',   'tipo',   { unique: false });
           cola.createIndex('estado', 'estado', { unique: false });
-          cola.createIndex('fecha', 'fecha', { unique: false });
+          cola.createIndex('fecha',  'fecha',  { unique: false });
         }
 
         // Cache de inventario local
@@ -47,39 +47,39 @@ class DB {
         }
       };
 
-      req.onsuccess = (e) => { this.db = e.target.result; resolve(this); };
-      req.onerror = (e) => reject(e.target.error);
+      req.onsuccess  = (e) => { this.db = e.target.result; resolve(this); };
+      req.onerror    = (e) => reject(e.target.error);
     });
   }
 
   // Agregar operación a la cola
   async encolar(tipo, data) {
-    const uuid = generarUUID();
+    const uuid   = generarUUID();
     const record = {
       uuid,
       tipo,
       data: { ...data, uuid },
-      estado: 'pendiente',
-      fecha: new Date().toISOString(),
+      estado:  'pendiente',
+      fecha:   new Date().toISOString(),
       intentos: 0,
     };
 
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('sync_queue', 'readwrite');
-      const req = tx.objectStore('sync_queue').add(record);
+      const tx   = this.db.transaction('sync_queue', 'readwrite');
+      const req  = tx.objectStore('sync_queue').add(record);
       req.onsuccess = () => resolve(uuid);
-      req.onerror = () => reject(req.error);
+      req.onerror   = () => reject(req.error);
     });
   }
 
   // Obtener todos los registros pendientes
   async obtenerPendientes() {
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('sync_queue', 'readonly');
-      const idx = tx.objectStore('sync_queue').index('estado');
-      const req = idx.getAll('pendiente');
+      const tx    = this.db.transaction('sync_queue', 'readonly');
+      const idx   = tx.objectStore('sync_queue').index('estado');
+      const req   = idx.getAll('pendiente');
       req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+      req.onerror   = () => reject(req.error);
     });
   }
 
@@ -90,17 +90,17 @@ class DB {
 
   async marcarError(uuid, error) {
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('sync_queue', 'readwrite');
-      const os = tx.objectStore('sync_queue');
+      const tx  = this.db.transaction('sync_queue', 'readwrite');
+      const os  = tx.objectStore('sync_queue');
       const req = os.get(uuid);
       req.onsuccess = () => {
-        const rec = req.result;
-        rec.estado = 'error';
+        const rec     = req.result;
+        rec.estado    = 'error';
         rec.error_msg = error;
-        rec.intentos = (rec.intentos || 0) + 1;
-        const upd = os.put(rec);
+        rec.intentos  = (rec.intentos || 0) + 1;
+        const upd     = os.put(rec);
         upd.onsuccess = resolve;
-        upd.onerror = () => reject(upd.error);
+        upd.onerror   = () => reject(upd.error);
       };
       req.onerror = () => reject(req.error);
     });
@@ -108,15 +108,15 @@ class DB {
 
   _actualizarEstado(uuid, estado) {
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('sync_queue', 'readwrite');
-      const os = tx.objectStore('sync_queue');
+      const tx  = this.db.transaction('sync_queue', 'readwrite');
+      const os  = tx.objectStore('sync_queue');
       const req = os.get(uuid);
       req.onsuccess = () => {
         const rec = req.result;
         rec.estado = estado;
         const upd = os.put(rec);
         upd.onsuccess = resolve;
-        upd.onerror = () => reject(upd.error);
+        upd.onerror   = () => reject(upd.error);
       };
     });
   }
@@ -127,25 +127,25 @@ class DB {
     items.forEach(item => os.put(item));
     return new Promise((r, rj) => {
       tx.oncomplete = r;
-      tx.onerror = () => rj(tx.error);
+      tx.onerror    = () => rj(tx.error);
     });
   }
 
   async buscarInventarioCache(codigo) {
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('inventario_cache', 'readonly');
+      const tx  = this.db.transaction('inventario_cache', 'readonly');
       const req = tx.objectStore('inventario_cache').get(codigo);
       req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => reject(req.error);
+      req.onerror   = () => reject(req.error);
     });
   }
 
   async guardarQRCache(material) {
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('qr_cache', 'readwrite');
+      const tx  = this.db.transaction('qr_cache', 'readwrite');
       const req = tx.objectStore('qr_cache').put(material);
       req.onsuccess = resolve;
-      req.onerror = () => reject(req.error);
+      req.onerror   = () => reject(req.error);
     });
   }
 }
@@ -153,12 +153,12 @@ class DB {
 // ─── SINCRONIZADOR ───────────────────────────────────────────
 class Sincronizador {
   constructor(db) {
-    this.db = db;
+    this.db       = db;
     this.corriendo = false;
   }
 
   iniciar() {
-    window.addEventListener('online', () => this.sincronizar());
+    window.addEventListener('online',  () => this.sincronizar());
     setInterval(() => {
       if (navigator.onLine) this.sincronizar();
     }, CONFIG.SYNC_INTERVAL);
@@ -177,17 +177,21 @@ class Sincronizador {
     let ok = 0, err = 0;
     for (const rec of pendientes) {
       try {
-        // Marcar sincronizado ANTES de enviar para evitar duplicados
-        await this.db.marcarSincronizado(rec.uuid);
-
-        await fetch(CONFIG.APPS_SCRIPT_URL, {
+        const resp = await fetch(CONFIG.APPS_SCRIPT_URL, {
           method: 'POST',
-          mode: 'no-cors',
-          body: JSON.stringify({ tipo: rec.tipo, data: rec.data }),
-          headers: { 'Content-Type': 'text/plain' },
+          body:   JSON.stringify({ tipo: rec.tipo, data: rec.data }),
+          headers: { 'Content-Type': 'application/json' },
         });
-        ok++;
-        console.log(`[SYNC] ✓ Enviado: ${rec.uuid.slice(0, 8)}`);
+
+        const json = await resp.json();
+        if (json.codigo === 200 || json.codigo === 409) {
+          // 409 = duplicado, igual se marca como sincronizado
+          await this.db.marcarSincronizado(rec.uuid);
+          ok++;
+        } else {
+          await this.db.marcarError(rec.uuid, json.mensaje);
+          err++;
+        }
       } catch (e) {
         await this.db.marcarError(rec.uuid, e.message);
         err++;
@@ -206,16 +210,18 @@ class FormRecepcionCasing {
   constructor(db) { this.db = db; }
 
   async guardar(datos) {
+    // Validaciones básicas
     if (!datos.n_for || !datos.codigo_spring || !datos.tubos_totales)
-      throw new Error('CAMPOS REQUERIDOS: N° FOR, CÓDIGO SPRING, TUBOS TOTALES');
-  
+      throw new Error('Campos requeridos: N° FOR, Código Spring, Tubos Totales');
+
     if (!CONFIG.MEDIDAS_CASING.includes(datos.medida_casing))
-      throw new Error(`MEDIDA INVÁLIDA. USE: ${CONFIG.MEDIDAS_CASING.join(', ')}`);
-  
-    datos.fecha = datos.fecha || hoy();
-  
+      throw new Error(`Medida inválida. Use: ${CONFIG.MEDIDAS_CASING.join(', ')}`);
+
+    datos.tubos_totales = parseInt(datos.paquetes_por_camion) * parseInt(datos.tubos_por_paquete);
+    datos.fecha         = datos.fecha || hoy();
+
     const uuid = await this.db.encolar('recepcion_casing', datos);
-    UI.mostrarToast(`RECEPCIÓN GUARDADA. UUID: ${uuid.slice(0,8)}...`);
+    UI.mostrarToast(`Recepción guardada offline. UUID: ${uuid.slice(0,8)}...`);
     return uuid;
   }
 }
@@ -232,12 +238,13 @@ class FormRecepcionAIB {
     if (packingListItems.length > 0) {
       await this.db.encolar('packing_list_aib', {
         uuid_recepcion_aib: uuidAIB,
-        id_aib: `AIB-${datos.n_container}-${datos.sku_modelo}`,
-        items: packingListItems,
+        id_aib:      `AIB-${datos.n_container}-${datos.sku_modelo}`,
+        n_container: datos.n_container,
+        items:       packingListItems,
       });
     }
 
-    UI.mostrarToast(`AIB guardado. UUID: ${uuidAIB.slice(0, 8)}...`);
+    UI.mostrarToast(`AIB GUARDADO. UUID: ${uuidAIB.slice(0,8)}...`);
     return uuidAIB;
   }
 }
@@ -263,9 +270,9 @@ class FormDespacho {
 // ─── ESCÁNER QR ──────────────────────────────────────────────
 class EscanerQR {
   constructor(db) {
-    this.db = db;
-    this.stream = null;
-    this.activo = false;
+    this.db        = db;
+    this.stream    = null;
+    this.activo    = false;
   }
 
   async iniciarCamara(videoEl, onDetected) {
@@ -286,7 +293,7 @@ class EscanerQR {
             if (codes.length > 0) {
               await this._procesarCodigo(codes[0].rawValue, onDetected);
             }
-          } catch (_) { }
+          } catch (_) {}
           requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
@@ -326,7 +333,7 @@ class EscanerQR {
           material = json.data;
           await this.db.guardarQRCache({ id_material: rawValue, ...material });
         }
-      } catch (_) { }
+      } catch (_) {}
     }
 
     onDetected(rawValue, material);
@@ -342,12 +349,12 @@ class CapturaFoto {
         if (!file) { resolve(null); return; }
 
         const reader = new FileReader();
-        reader.onload = (ev) => resolve({
-          base64: ev.target.result,
-          nombre: file.name,
-          tipo: file.type,
-          tamaño: file.size,
-          fecha: new Date().toISOString(),
+        reader.onload  = (ev) => resolve({
+          base64:   ev.target.result,
+          nombre:   file.name,
+          tipo:     file.type,
+          tamaño:   file.size,
+          fecha:    new Date().toISOString(),
         });
         reader.onerror = reject;
         reader.readAsDataURL(file);
@@ -360,10 +367,10 @@ class CapturaFoto {
 // ─── UTILIDADES DE UI ────────────────────────────────────────
 const UI = {
   mostrarToast(msg, tipo = 'success') {
-    const el = document.getElementById('toast') || document.createElement('div');
-    el.id = 'toast';
+    const el       = document.getElementById('toast') || document.createElement('div');
+    el.id          = 'toast';
     el.textContent = msg;
-    el.className = `toast toast--${tipo}`;
+    el.className   = `toast toast--${tipo}`;
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 4000);
   },
@@ -389,8 +396,8 @@ const UI = {
     const el = document.getElementById('estado-conexion');
     if (!el) return;
     const online = navigator.onLine;
-    el.textContent = online ? '🟢 En línea' : '🔴 Sin conexión (offline)';
-    el.className = `estado-conexion ${online ? 'online' : 'offline'}`;
+    el.textContent  = online ? '🟢 En línea' : '🔴 Sin conexión (offline)';
+    el.className    = `estado-conexion ${online ? 'online' : 'offline'}`;
   },
 };
 
@@ -413,23 +420,24 @@ let dbInstance, sync;
 async function initApp() {
   try {
     dbInstance = await new DB().init();
-    sync = new Sincronizador(dbInstance);
+    sync       = new Sincronizador(dbInstance);
     sync.iniciar();
 
     // Exponer módulos globalmente
     window.App = {
-      db: dbInstance,
+      db:              dbInstance,
       sync,
+      SCRIPT_URL:      CONFIG.APPS_SCRIPT_URL,
       recepcionCasing: new FormRecepcionCasing(dbInstance),
-      recepcionAIB: new FormRecepcionAIB(dbInstance),
-      despacho: new FormDespacho(dbInstance),
-      escaner: new EscanerQR(dbInstance),
+      recepcionAIB:    new FormRecepcionAIB(dbInstance),
+      despacho:        new FormDespacho(dbInstance),
+      escaner:         new EscanerQR(dbInstance),
       CapturaFoto,
       UI,
     };
 
     // Listeners de conexión
-    window.addEventListener('online', UI.indicadorOnline);
+    window.addEventListener('online',  UI.indicadorOnline);
     window.addEventListener('offline', UI.indicadorOnline);
     UI.indicadorOnline();
 
