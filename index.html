@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1D3557">
+  <title>Logística Zapotal</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root {
+      --primary: #1D3557; --accent: #E63946; --success: #2A9D8F;
+      --warn: #E9C46A; --bg: #F8F9FA; --card: #FFFFFF;
+      --text: #212529; --muted: #6C757D; --border: #DEE2E6; --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    header { background: var(--primary); color: white; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    header h1 { font-size: 15px; font-weight: 700; }
+    #estado-conexion { font-size: 11px; padding: 3px 8px; border-radius: 12px; background: rgba(255,255,255,0.15); }
+    nav { background: var(--card); border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; position: sticky; top: 52px; z-index: 90; }
+    nav button { flex: 0 0 auto; border: none; background: none; padding: 12px 14px; font-size: 12px; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; transition: all .2s; }
+    nav button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+    .pagina { display: none; padding: 16px; max-width: 680px; margin: 0 auto; }
+    .pagina.activa { display: block; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
+    .card h2 { font-size: 14px; font-weight: 700; color: var(--primary); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .card h3 { font-size: 13px; font-weight: 700; color: var(--primary); margin: 14px 0 8px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .form-grid .full { grid-column: 1 / -1; }
+    .campo { display: flex; flex-direction: column; gap: 4px; }
+    .campo label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .campo label .req { color: var(--accent); }
+    .campo input, .campo select, .campo textarea {
+      border: 1px solid var(--border); border-radius: 6px; padding: 9px 10px;
+      font-size: 14px; color: var(--text); background: var(--bg); transition: border-color .2s;
+    }
+    .campo input[type="text"] { text-transform: uppercase; }
+    .campo textarea { resize: vertical; min-height: 60px; text-transform: uppercase; }
+    .campo input:focus, .campo select:focus { outline: none; border-color: var(--primary); background: white; }
+    .campo input[readonly] { background: #e9ecef; font-weight: 700; color: var(--primary); }
+    .btn { border: none; border-radius: 8px; padding: 12px 20px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary { background: var(--primary); color: white; width: 100%; justify-content: center; margin-top: 12px; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-warn    { background: var(--warn); color: #333; }
+    .btn-danger  { background: var(--accent); color: white; }
+    .btn-sm { padding: 7px 12px; font-size: 12px; margin-top: 0; width: auto; }
+    .btn:active { opacity: 0.85; transform: scale(0.98); }
+    .info-box { background: #E6F1FB; border: 1px solid #B5D4F4; border-radius: 6px; padding: 10px 12px; font-size: 12px; color: #0C447C; margin-bottom: 10px; }
+    .warn-box  { background: #FFF3CD; border: 1px solid #E9C46A; border-radius: 6px; padding: 10px 12px; font-size: 12px; color: #856404; font-weight: 700; }
+    .total-box { background: #EAF3DE; border: 1px solid #639922; border-radius: 6px; padding: 10px 12px; font-size: 13px; font-weight: 700; color: #3B6D11; margin-top: 8px; }
+    .paquete-fila { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+    .paquete-fila input { flex: 1; }
+    .pl-item { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+    .pl-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    #scanner-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 200; flex-direction: column; align-items: center; justify-content: center; }
+    #scanner-overlay.activo { display: flex; }
+    #video-qr { width: 280px; height: 280px; border: 3px solid var(--warn); border-radius: var(--radius); object-fit: cover; }
+    .cerrar-scanner { position: absolute; top: 20px; right: 20px; background: white; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 18px; cursor: pointer; }
+    .scan-hint { color: white; font-size: 13px; margin-top: 14px; text-align: center; }
+    #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #1D3557; color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 300; opacity: 0; transition: opacity .3s; pointer-events: none; max-width: 92%; text-align: center; font-weight: 700; }
+    #toast.visible { opacity: 1; }
+    #toast.error { background: var(--accent); }
+    #sync-banner { background: var(--warn); text-align: center; padding: 8px; font-size: 12px; font-weight: 700; display: none; position: sticky; top: 100px; z-index: 80; }
+    .tabla-inv { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .tabla-inv th { background: var(--primary); color: white; padding: 8px 6px; text-align: left; }
+    .tabla-inv td { padding: 7px 6px; border-bottom: 1px solid var(--border); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+    .badge-ok   { background: #D4EDDA; color: #155724; }
+    .badge-low  { background: #FFF3CD; color: #856404; }
+    .badge-out  { background: #F8D7DA; color: #721C24; }
+    .badge-free { background: #E1F5EE; color: #0F6E56; }
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .kpi-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 14px; text-align: center; }
+    .kpi-valor { font-size: 26px; font-weight: 700; color: var(--primary); }
+    .kpi-label { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .mapa-pasillos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .pasillo-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+    .pasillo-card h3 { font-size: 12px; color: var(--primary); font-weight: 700; margin-bottom: 8px; }
+    .sync-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 6px; margin-bottom: 6px; background: #f8f9fa; border: 1px solid var(--border); font-size: 12px; }
+    .sync-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot-pendiente { background: var(--warn); }
+    .dot-sincronizado { background: var(--success); }
+    .dot-error { background: var(--accent); }
+    .cat-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 6px; margin-bottom: 6px; background: #f8f9fa; border: 1px solid var(--border); font-size: 12px; font-weight: 700; }
+    @media (max-width: 420px) { .form-grid { grid-template-columns: 1fr; } .mapa-pasillos { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚙ LOGÍSTICA ZAPOTAL</h1>
+  <span id="estado-conexion">Verificando...</span>
+</header>
+
+<nav>
+  <button class="active" onclick="mostrarPagina('rec-casing',this)">📥 Casing</button>
+  <button onclick="mostrarPagina('estibado',this)">📦 Estibado</button>
+  <button onclick="mostrarPagina('rec-aib',this)">🔧 AIB</button>
+  <button onclick="mostrarPagina('despacho',this)">🚚 Despacho</button>
+  <button onclick="mostrarPagina('inventario',this)">📋 Stock</button>
+  <button onclick="mostrarPagina('dashboard',this)">📊 Dashboard</button>
+  <button onclick="mostrarPagina('catalogo',this)">🗂 Catálogo</button>
+  <button onclick="mostrarPagina('cola-sync',this)">📡 Sync</button>
+</nav>
+
+<div id="sync-banner"></div>
+
+<!-- ═══ RECEPCIÓN CASING ═══ -->
+<section class="pagina activa" id="pag-rec-casing">
+  <div class="card">
+    <h2>📥 RECEPCIÓN DE CASING</h2>
+    <div class="form-grid">
+      <div class="campo"><label>Fecha <span class="req">*</span></label><input type="date" id="rc-fecha"></div>
+      <div class="campo"><label>N° FOR <span class="req">*</span></label><input type="text" id="rc-n_for" placeholder="FOR-001"></div>
+      <div class="campo"><label>Código Spring <span class="req">*</span></label><input type="text" id="rc-codigo_spring" placeholder="SPR-XXX"></div>
+      <div class="campo"><label>N° Guía <span class="req">*</span></label><input type="text" id="rc-n_guia"></div>
+      <div class="campo"><label>Placa Tracto <span class="req">*</span></label><input type="text" id="rc-placa_tracto" placeholder="ABC-123"></div>
+      <div class="campo"><label>Operador</label><input type="text" id="rc-operador"></div>
+      <div class="campo"><label>Medida <span class="req">*</span></label>
+        <select id="rc-medida_casing">
+          <option value="">-- SELECCIONAR --</option>
+          <option value="5 1/2">5 1/2"</option>
+          <option value="9 5/8">9 5/8"</option>
+          <option value="13 3/8">13 3/8"</option>
+        </select>
+      </div>
+      <div class="campo"><label>Peso (LB) <span class="req">*</span></label>
+        <select id="rc-peso_lb">
+          <option value="">-- SELECCIONAR --</option>
+          <option value="15.5">15.5 LB</option>
+          <option value="17">17 LB</option>
+          <option value="20">20 LB</option>
+          <option value="32.3">32.3 LB</option>
+          <option value="40">40 LB</option>
+        </select>
+      </div>
+      <div class="campo"><label>Hora Inicio</label><input type="time" id="rc-hora_inicio"></div>
+      <div class="campo"><label>Hora Fin</label><input type="time" id="rc-hora_fin"></div>
+      <div class="campo full"><label>Área</label><input type="text" id="rc-area" placeholder="LAGUNA ZAPOTAL"></div>
+    </div>
+
+    <h3>📦 DETALLE DE PAQUETES</h3>
+    <div class="info-box">Agrega cada paquete con su cantidad real. Si un paquete viene incompleto, pon la cantidad real que trae.</div>
+    <div id="paquetes-lista"></div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+      <button class="btn btn-success btn-sm" onclick="agregarPaquete()">+ UN PAQUETE</button>
+      <button class="btn btn-warn btn-sm" onclick="agregarVariosPaquetes()">⚡ VARIOS PAQUETES</button>
+    </div>
+    <div class="total-box" id="rc-resumen-tubos">Total: 0 paquete(s) | 0 tubos</div>
+
+    <div class="form-grid" style="margin-top:10px;">
+      <div class="campo full">
+        <label>Total Tubos Real <span class="req">*</span></label>
+        <input type="number" id="rc-tubos_totales" placeholder="Se calcula automático, editable si hay diferencia">
+      </div>
+      <div class="campo full">
+        <label>Observaciones</label>
+        <textarea id="rc-observaciones" placeholder="EJ: 2 PQ CON 6 TUBOS, 1 PQ CON 5 TUBOS"></textarea>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="guardarRecepcionCasing()">💾 GUARDAR RECEPCIÓN</button>
+  </div>
+</section>
+
+<!-- ═══ ESTIBADO CASING ═══ -->
+<section class="pagina" id="pag-estibado">
+  <div class="card">
+    <h2>📦 ESTIBADO DE CASING</h2>
+    <div class="info-box">Registra la ubicación final del casing. Puede hacerse días después de la recepción.</div>
+    <div class="form-grid">
+      <div class="campo"><label>Fecha <span class="req">*</span></label><input type="date" id="est-fecha"></div>
+      <div class="campo"><label>Montacarga</label><input type="text" id="est-montacarga" placeholder="MC-01"></div>
+      <div class="campo"><label>Hora Inicio</label><input type="time" id="est-hora_inicio"></div>
+      <div class="campo"><label>Hora Fin</label><input type="time" id="est-hora_fin"></div>
+      <div class="campo"><label>Código Spring <span class="req">*</span></label><input type="text" id="est-codigo" placeholder="SPR-XXX"></div>
+      <div class="campo"><label>Medida <span class="req">*</span></label>
+        <select id="est-medida">
+          <option value="">-- SELECCIONAR --</option>
+          <option value="5 1/2">5 1/2"</option>
+          <option value="9 5/8">9 5/8"</option>
+          <option value="13 3/8">13 3/8"</option>
+        </select>
+      </div>
+      <div class="campo"><label>Peso (LB) <span class="req">*</span></label>
+        <select id="est-peso_lb">
+          <option value="">-- SELECCIONAR --</option>
+          <option value="15.5">15.5 LB</option>
+          <option value="17">17 LB</option>
+          <option value="20">20 LB</option>
+          <option value="32.3">32.3 LB</option>
+          <option value="40">40 LB</option>
+        </select>
+      </div>
+      <div class="campo"><label>Pasillo <span class="req">*</span></label>
+        <select id="est-pasillo">
+          <option value="">-- SELECCIONAR --</option>
+          <option value="1.1">1.1</option>
+          <option value="1.2">1.2</option>
+          <option value="1.3">1.3</option>
+        </select>
+      </div>
+      <div class="campo"><label>N° Rack <span class="req">*</span></label><input type="text" id="est-rack" placeholder="R-01"></div>
+      <div class="campo"><label>N° Filas</label><input type="number" id="est-filas" placeholder="EJ: 6" oninput="calcEstibado()"></div>
+      <div class="campo"><label>Tubos × Fila</label><input type="number" id="est-tub_fila" placeholder="EJ: 77" oninput="calcEstibado()"></div>
+      <div class="campo"><label>Paquetes Estibados</label><input type="number" id="est-paquetes" min="1"></div>
+      <div class="campo"><label>Tubos × Paquete</label><input type="number" id="est-tub_paquete" min="1"></div>
+      <div class="campo full">
+        <label>Total Tubos en Rack <span class="req">*</span></label>
+        <input type="number" id="est-total_tuberias" placeholder="Editable manualmente">
+      </div>
+      <div class="campo full"><label>Observaciones</label>
+        <textarea id="est-observaciones" placeholder="EJ: FILA 7 TIENE 80 TUBOS POR ESPACIO ADICIONAL"></textarea>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="guardarEstibado()">💾 GUARDAR ESTIBADO</button>
+  </div>
+</section>
+
+<!-- ═══ RECEPCIÓN AIB ═══ -->
+<section class="pagina" id="pag-rec-aib">
+  <div class="card">
+    <h2>🔧 RECEPCIÓN EQUIPO AIB</h2>
+    <div class="info-box">Los modelos y containers deben registrarse primero en el <strong>Catálogo</strong> por el supervisor.</div>
+    <div class="form-grid">
+      <div class="campo"><label>Fecha <span class="req">*</span></label><input type="date" id="aib-fecha"></div>
+      <div class="campo"><label>Responsable</label><input type="text" id="aib-responsable"></div>
+      <div class="campo"><label>N° Container <span class="req">*</span></label>
+        <select id="aib-n_container"><option value="">-- SELECCIONAR --</option></select>
+      </div>
+      <div class="campo"><label>Modelo AIB <span class="req">*</span></label>
+        <select id="aib-sku_modelo"><option value="">-- SELECCIONAR --</option></select>
+      </div>
+      <div class="campo"><label>N° FOR / BL</label><input type="text" id="aib-n_for_bl"></div>
+      <div class="campo"><label>N° Orden</label><input type="text" id="aib-n_orden"></div>
+      <div class="campo"><label>Código Spring</label><input type="text" id="aib-codigo_spring"></div>
+      <div class="campo full"><label>Descripción</label><input type="text" id="aib-descripcion"></div>
+      <div class="campo"><label>Cantidad</label><input type="number" id="aib-cantidad" min="1" value="1"></div>
+      <div class="campo"><label>U.M.</label><input type="text" id="aib-um" value="UND"></div>
+      <div class="campo"><label>N° Paquetes</label><input type="number" id="aib-n_paquetes"></div>
+      <div class="campo"><label>Rack</label><input type="text" id="aib-rack" placeholder="R-01"></div>
+    </div>
+
+    <h3>📋 PACKING LIST – COMPONENTES</h3>
+    <div class="info-box">Ingresa cada componente según el packing list físico del equipo.</div>
+    <div id="pl-lista"></div>
+    <button class="btn btn-success btn-sm" onclick="agregarItemPL()" style="margin-top:8px;">+ AGREGAR COMPONENTE</button>
+    <div id="pl-peso-total" style="margin-top:8px;display:none;" class="total-box"></div>
+
+    <button class="btn btn-primary" onclick="guardarRecepcionAIB()">💾 GUARDAR AIB</button>
+  </div>
+</section>
+
+<!-- ═══ DESPACHO ═══ -->
+<section class="pagina" id="pag-despacho">
+  <div class="card">
+    <h2>🚚 DESPACHO DE MATERIAL</h2>
+    <button class="btn btn-warn" onclick="abrirScanner('despacho')" style="width:100%;margin-bottom:12px;">
+      📷 ESCANEAR QR DEL RACK / EQUIPO
+    </button>
+
+    <div class="form-grid">
+      <div class="campo"><label>Tipo <span class="req">*</span></label>
+        <select id="dp-tipo" onchange="toggleDespacho()">
+          <option value="casing">CASING</option>
+          <option value="aib">EQUIPO AIB</option>
+        </select>
+      </div>
+      <div class="campo"><label>Fecha <span class="req">*</span></label><input type="date" id="dp-fecha"></div>
+      <div class="campo"><label>Hora Inicio</label><input type="time" id="dp-hora_inicio"></div>
+      <div class="campo"><label>Hora Fin</label><input type="time" id="dp-hora_fin"></div>
+      <div class="campo"><label>N° RQ <span class="req">*</span></label><input type="text" id="dp-n_rq"></div>
+      <div class="campo"><label>N° Guía / Salida</label><input type="text" id="dp-n_guia"></div>
+      <div class="campo"><label>N° Orden</label><input type="text" id="dp-n_orden"></div>
+      <div class="campo"><label>Código Spring / SKU</label><input type="text" id="dp-codigo"></div>
+    </div>
+
+    <!-- INFO RACK (cargada desde QR) -->
+    <div id="info-rack-box" style="display:none;" class="info-box" style="margin-top:10px;">
+      <strong>RACK ESCANEADO:</strong> <span id="info-rack-texto"></span>
+    </div>
+
+    <!-- CAMPOS CASING -->
+    <div class="form-grid" id="campos-casing-dp" style="margin-top:10px;">
+      <div class="campo"><label>Medida Casing</label><input type="text" id="dp-medida_casing" readonly></div>
+      <div class="campo"><label>Peso (LB)</label><input type="text" id="dp-peso_lb" readonly></div>
+      <div class="campo"><label>Pasillo <span class="req">*</span></label><input type="text" id="dp-pasillo"></div>
+      <div class="campo"><label>N° Rack <span class="req">*</span></label><input type="text" id="dp-rack"></div>
+      <div class="campo"><label>Stock Disponible</label><input type="number" id="dp-stock_actual" readonly></div>
+      <div class="campo"><label>Tubos a Despachar <span class="req">*</span></label>
+        <input type="number" id="dp-tubos_despachar" min="1" oninput="validarStock()">
+      </div>
+      <div class="campo full" id="aviso-stock" style="display:none;">
+        <div class="warn-box">⚠ CANTIDAD SUPERA EL STOCK DISPONIBLE</div>
+      </div>
+    </div>
+
+    <!-- CAMPOS AIB -->
+    <div class="form-grid" id="campos-aib-dp" style="display:none;margin-top:10px;">
+      <div class="campo"><label>N° Container</label><input type="text" id="dp-n_container"></div>
+      <div class="campo"><label>SKU / Modelo</label><input type="text" id="dp-sku_modelo"></div>
+      <div class="campo"><label>Pasillo AIB</label><input type="text" id="dp-pasillo-aib" value="1.4"></div>
+      <div class="campo"><label>Rack AIB</label><input type="text" id="dp-rack-aib"></div>
+      <div class="campo"><label>Cantidad</label><input type="number" id="dp-cantidad_aib" min="1" value="1"></div>
+      <div class="campo"><label>U.M.</label><input type="text" id="dp-um_aib" value="UND"></div>
+      <div class="campo"><label>Estado Equipo</label>
+        <select id="dp-estado_equipo">
+          <option value="BUENO">BUENO</option>
+          <option value="REGULAR">REGULAR</option>
+          <option value="DAÑADO">DAÑADO</option>
+        </select>
+      </div>
+      <div class="campo"><label>Ubicación Salida</label><input type="text" id="dp-ubicacion_salida"></div>
+    </div>
+
+    <div class="form-grid" style="margin-top:10px;">
+      <div class="campo"><label>Pozo Destino <span class="req">*</span></label><input type="text" id="dp-pozo_destino" placeholder="POZO-XX"></div>
+      <div class="campo"><label>Área</label><input type="text" id="dp-area"></div>
+      <div class="campo"><label>Transportista</label><input type="text" id="dp-transportista"></div>
+      <div class="campo"><label>Placa Vehículo</label><input type="text" id="dp-placa"></div>
+      <div class="campo full"><label>Operador</label><input type="text" id="dp-operador"></div>
+      <div class="campo full"><label>Observaciones</label><textarea id="dp-observaciones"></textarea></div>
+    </div>
+    <button class="btn btn-primary" onclick="guardarDespacho()">💾 GUARDAR DESPACHO</button>
+  </div>
+</section>
+
+<!-- ═══ STOCK ═══ -->
+<section class="pagina" id="pag-inventario">
+  <div class="card">
+    <h2>📋 STOCK E INVENTARIO</h2>
+    <button class="btn btn-success btn-sm" onclick="cargarInventario()" style="margin-bottom:12px;">🔄 ACTUALIZAR DESDE SHEETS</button>
+    <div id="tabla-inventario-container">
+      <p style="color:var(--muted);font-size:13px;">Toca ACTUALIZAR para cargar el inventario.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ DASHBOARD ═══ -->
+<section class="pagina" id="pag-dashboard">
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-valor" id="kpi-tubos">—</div><div class="kpi-label">Tubos en cola</div></div>
+    <div class="kpi-card"><div class="kpi-valor" id="kpi-pendientes">—</div><div class="kpi-label">Pendientes sync</div></div>
+    <div class="kpi-card"><div class="kpi-valor" id="kpi-aibs">—</div><div class="kpi-label">AIBs en cola</div></div>
+    <div class="kpi-card"><div class="kpi-valor" id="kpi-despachos">—</div><div class="kpi-label">Despachos en cola</div></div>
+  </div>
+  <div class="card">
+    <h2>🗺 MAPA DE PASILLOS</h2>
+    <div class="mapa-pasillos">
+      <div class="pasillo-card"><h3>PASILLO 1.1 – CASING</h3><div id="racks-1-1"><p style="color:var(--muted);font-size:11px;">Sin datos</p></div></div>
+      <div class="pasillo-card"><h3>PASILLO 1.2 – CASING</h3><div id="racks-1-2"><p style="color:var(--muted);font-size:11px;">Sin datos</p></div></div>
+      <div class="pasillo-card"><h3>PASILLO 1.3 – CASING</h3><div id="racks-1-3"><p style="color:var(--muted);font-size:11px;">Sin datos</p></div></div>
+      <div class="pasillo-card"><h3>PASILLO 1.4 – AIB</h3><div id="racks-1-4"><p style="color:var(--muted);font-size:11px;">Sin datos</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CATÁLOGO ═══ -->
+<section class="pagina" id="pag-catalogo">
+  <div class="card">
+    <h2>🗂 CATÁLOGO – MODELOS AIB</h2>
+    <div class="info-box">Solo el supervisor registra modelos. Los operadores los verán en la lista al recepcionar AIB.</div>
+    <div class="form-grid">
+      <div class="campo full"><label>Modelo AIB</label><input type="text" id="cat-modelo" placeholder="EJ: AIB-M150"></div>
+      <div class="campo full"><label>Descripción</label><input type="text" id="cat-modelo-desc" placeholder="EJ: UNIDAD DE BOMBEO MODELO 150"></div>
+    </div>
+    <button class="btn btn-success btn-sm" onclick="agregarModelo()" style="margin-top:8px;">+ AGREGAR MODELO</button>
+    <div id="lista-modelos" style="margin-top:12px;"></div>
+  </div>
+  <div class="card">
+    <h2>🗂 CATÁLOGO – N° CONTAINERS</h2>
+    <div class="form-grid">
+      <div class="campo full"><label>N° Container</label><input type="text" id="cat-container" placeholder="EJ: CONT-2024-001"></div>
+      <div class="campo full"><label>Descripción / Observación</label><input type="text" id="cat-container-desc" placeholder="EJ: LLEGÓ 15-MAY-2024"></div>
+    </div>
+    <button class="btn btn-success btn-sm" onclick="agregarContainer()" style="margin-top:8px;">+ AGREGAR CONTAINER</button>
+    <div id="lista-containers" style="margin-top:12px;"></div>
+  </div>
+</section>
+
+<!-- ═══ COLA SYNC ═══ -->
+<section class="pagina" id="pag-cola-sync">
+  <div class="card">
+    <h2>📡 COLA DE SINCRONIZACIÓN</h2>
+    <button class="btn btn-success" onclick="forzarSync()" style="width:100%;margin-bottom:12px;">⬆ SINCRONIZAR AHORA</button>
+    <div id="lista-cola"></div>
+  </div>
+</section>
+
+<!-- SCANNER -->
+<div id="scanner-overlay">
+  <button class="cerrar-scanner" onclick="cerrarScanner()">✕</button>
+  <video id="video-qr" autoplay playsinline muted></video>
+  <p class="scan-hint">Apunta al QR del rack o equipo AIB</p>
+  <div style="margin-top:14px;text-align:center;">
+    <input type="text" id="input-manual-qr" placeholder="O ingresa el código manualmente..."
+      style="padding:10px;border-radius:8px;border:none;width:280px;font-size:14px;text-transform:uppercase;">
+    <br>
+    <button class="btn btn-success" onclick="procesarManual()" style="margin-top:8px;width:280px;">USAR CÓDIGO MANUAL</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="app.js"></script>
+<script>
+
+// ─── NAVEGACIÓN ──────────────────────────────────────────────
+function mostrarPagina(id, btn) {
+  document.querySelectorAll('.pagina').forEach(p => p.classList.remove('activa'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('pag-' + id).classList.add('activa');
+  if (btn) btn.classList.add('active');
+  if (id === 'dashboard') actualizarDashboard();
+  if (id === 'cola-sync') actualizarCola();
+  if (id === 'catalogo') renderCatalogo();
+}
+
+// ─── PAQUETES DETALLADOS ─────────────────────────────────────
+let paquetes = [];
+
+function agregarPaquete(qty) {
+  paquetes.push({ id: Date.now() + Math.random(), qty: qty || 7 });
+  renderPaquetes();
+}
+
+function agregarVariosPaquetes() {
+  const n = parseInt(prompt('¿Cuántos paquetes iguales quieres agregar?') || '0');
+  if (!n || n <= 0) return;
+  const q = parseInt(prompt('¿Cuántos tubos trae cada paquete?') || '7');
+  for (let i = 0; i < n; i++) agregarPaquete(q);
+}
+
+function eliminarPaquete(id) {
+  paquetes = paquetes.filter(p => p.id !== id);
+  renderPaquetes();
+}
+
+function renderPaquetes() {
+  const lista = document.getElementById('paquetes-lista');
+  if (!paquetes.length) { lista.innerHTML = ''; actualizarTotalTubos(); return; }
+  lista.innerHTML = paquetes.map((p, i) => `
+    <div class="paquete-fila">
+      <span style="font-size:11px;color:var(--muted);min-width:32px;font-weight:700;">PQ${i+1}</span>
+      <input type="number" min="1" value="${p.qty || ''}" placeholder="Tubos"
+        style="border:1px solid var(--border);border-radius:6px;padding:8px;font-size:14px;background:var(--bg);"
+        onchange="paquetes[${i}].qty=parseInt(this.value)||0; actualizarTotalTubos()">
+      <button class="btn btn-danger btn-sm" onclick="eliminarPaquete(${p.id})" style="margin-top:0;">✕</button>
+    </div>`).join('');
+  actualizarTotalTubos();
+}
+
+function actualizarTotalTubos() {
+  const total = paquetes.reduce((s, p) => s + (parseInt(p.qty) || 0), 0);
+  document.getElementById('rc-resumen-tubos').textContent = `Total: ${paquetes.length} paquete(s) | ${total} tubos`;
+  document.getElementById('rc-tubos_totales').value = total || '';
+}
+
+// ─── ESTIBADO ────────────────────────────────────────────────
+function calcEstibado() {
+  const filas = parseInt(document.getElementById('est-filas').value) || 0;
+  const tubF  = parseInt(document.getElementById('est-tub_fila').value) || 0;
+  if (filas && tubF) document.getElementById('est-total_tuberias').value = filas * tubF;
+}
+
+// ─── PACKING LIST AIB ────────────────────────────────────────
+let plItems = [];
+
+function agregarItemPL() {
+  plItems.push({ id: Date.now() + Math.random() });
+  renderPL();
+}
+
+function eliminarItemPL(id) {
+  plItems = plItems.filter(i => i.id !== id);
+  renderPL();
+  actualizarPesoTotal();
+}
+
+function renderPL() {
+  const lista = document.getElementById('pl-lista');
+  lista.innerHTML = plItems.map((item, i) => `
+    <div class="pl-item">
+      <div class="pl-item-header">
+        <strong style="font-size:12px;color:var(--primary);">ÍTEM ${i+1}</strong>
+        <button class="btn btn-danger btn-sm" onclick="eliminarItemPL(${item.id})">✕</button>
+      </div>
+      <div class="form-grid">
+        <div class="campo"><label>N° Ítem</label>
+          <input type="text" placeholder="001" value="${item.n_item||''}"
+            oninput="plItems[${i}].n_item=this.value.toUpperCase()"></div>
+        <div class="campo"><label>Modelo</label>
+          <input type="text" placeholder="MODELO" value="${item.modelo||''}"
+            oninput="plItems[${i}].modelo=this.value.toUpperCase()"></div>
+        <div class="campo full"><label>Nombre / Componente</label>
+          <input type="text" placeholder="DESCRIPCIÓN DEL COMPONENTE" value="${item.nombre_componente||''}"
+            oninput="plItems[${i}].nombre_componente=this.value.toUpperCase()"></div>
+        <div class="campo"><label>Qty</label>
+          <input type="number" min="1" placeholder="1" value="${item.qty||''}"
+            style="text-transform:none;" oninput="plItems[${i}].qty=this.value"></div>
+        <div class="campo"><label>Unit</label>
+          <input type="text" placeholder="PCS" value="${item.unit||''}"
+            oninput="plItems[${i}].unit=this.value.toUpperCase()"></div>
+        <div class="campo"><label>N° Serial</label>
+          <input type="text" placeholder="S/N" value="${item.n_serial||''}"
+            oninput="plItems[${i}].n_serial=this.value.toUpperCase()"></div>
+        <div class="campo"><label>Peso (KG)</label>
+          <input type="number" step="0.01" placeholder="0.00" value="${item.weight_kg||''}"
+            style="text-transform:none;" oninput="plItems[${i}].weight_kg=parseFloat(this.value)||0; actualizarPesoTotal()"></div>
+        <div class="campo"><label>Package</label>
+          <input type="text" placeholder="BOX-01" value="${item.package||''}"
+            oninput="plItems[${i}].package=this.value.toUpperCase()"></div>
+      </div>
+    </div>`).join('');
+  actualizarPesoTotal();
+}
+
+function actualizarPesoTotal() {
+  const total = plItems.reduce((s, i) => s + (parseFloat(i.weight_kg) || 0), 0);
+  const el = document.getElementById('pl-peso-total');
+  if (plItems.length > 0) {
+    el.style.display = 'block';
+    el.textContent = `PESO TOTAL PACKING LIST: ${total.toFixed(2)} KG | ${plItems.length} COMPONENTE(S)`;
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// ─── CATÁLOGO ────────────────────────────────────────────────
+let catModelos    = JSON.parse(localStorage.getItem('cat_modelos')    || '[]');
+let catContainers = JSON.parse(localStorage.getItem('cat_containers') || '[]');
+
+function agregarModelo() {
+  const modelo = document.getElementById('cat-modelo').value.trim().toUpperCase();
+  const desc   = document.getElementById('cat-modelo-desc').value.trim().toUpperCase();
+  if (!modelo) { mostrarToast('INGRESA EL NOMBRE DEL MODELO', 'error'); return; }
+  if (catModelos.find(m => m.modelo === modelo)) { mostrarToast('MODELO YA EXISTE', 'error'); return; }
+  catModelos.push({ modelo, desc });
+  localStorage.setItem('cat_modelos', JSON.stringify(catModelos));
+  document.getElementById('cat-modelo').value = '';
+  document.getElementById('cat-modelo-desc').value = '';
+  renderCatalogo(); actualizarSelectsAIB();
+  mostrarToast('✔ MODELO AGREGADO');
+}
+
+function eliminarModelo(i) {
+  if (!confirm('¿Eliminar este modelo?')) return;
+  catModelos.splice(i, 1);
+  localStorage.setItem('cat_modelos', JSON.stringify(catModelos));
+  renderCatalogo(); actualizarSelectsAIB();
+}
+
+function agregarContainer() {
+  const cont = document.getElementById('cat-container').value.trim().toUpperCase();
+  const desc  = document.getElementById('cat-container-desc').value.trim().toUpperCase();
+  if (!cont) { mostrarToast('INGRESA EL N° DE CONTAINER', 'error'); return; }
+  if (catContainers.find(c => c.container === cont)) { mostrarToast('CONTAINER YA EXISTE', 'error'); return; }
+  catContainers.push({ container: cont, desc });
+  localStorage.setItem('cat_containers', JSON.stringify(catContainers));
+  document.getElementById('cat-container').value = '';
+  document.getElementById('cat-container-desc').value = '';
+  renderCatalogo(); actualizarSelectsAIB();
+  mostrarToast('✔ CONTAINER AGREGADO');
+}
+
+function eliminarContainer(i) {
+  if (!confirm('¿Eliminar este container?')) return;
+  catContainers.splice(i, 1);
+  localStorage.setItem('cat_containers', JSON.stringify(catContainers));
+  renderCatalogo(); actualizarSelectsAIB();
+}
+
+function renderCatalogo() {
+  document.getElementById('lista-modelos').innerHTML = catModelos.length
+    ? catModelos.map((m,i) => `<div class="cat-item"><div>${m.modelo} <span style="font-weight:400;color:var(--muted)">${m.desc}</span></div><button class="btn btn-danger btn-sm" onclick="eliminarModelo(${i})">✕</button></div>`).join('')
+    : '<p style="color:var(--muted);font-size:12px;">Sin modelos registrados</p>';
+  document.getElementById('lista-containers').innerHTML = catContainers.length
+    ? catContainers.map((c,i) => `<div class="cat-item"><div>${c.container} <span style="font-weight:400;color:var(--muted)">${c.desc}</span></div><button class="btn btn-danger btn-sm" onclick="eliminarContainer(${i})">✕</button></div>`).join('')
+    : '<p style="color:var(--muted);font-size:12px;">Sin containers registrados</p>';
+}
+
+function actualizarSelectsAIB() {
+  const selMod  = document.getElementById('aib-sku_modelo');
+  const selCont = document.getElementById('aib-n_container');
+  const vM = selMod.value, vC = selCont.value;
+  selMod.innerHTML  = '<option value="">-- SELECCIONAR --</option>' +
+    catModelos.map(m => `<option value="${m.modelo}">${m.modelo}${m.desc ? ' – ' + m.desc : ''}</option>`).join('');
+  selCont.innerHTML = '<option value="">-- SELECCIONAR --</option>' +
+    catContainers.map(c => `<option value="${c.container}">${c.container}${c.desc ? ' – ' + c.desc : ''}</option>`).join('');
+  if (vM) selMod.value = vM;
+  if (vC) selCont.value = vC;
+}
+
+// ─── GUARDAR RECEPCIÓN CASING ────────────────────────────────
+async function guardarRecepcionCasing() {
+  if (!window.App?.recepcionCasing) { mostrarToast('⏳ SISTEMA INICIANDO...'); return; }
+  
+  const d = leerForm('rc-', ['fecha','n_for','codigo_spring','n_guia','placa_tracto',
+    'operador','medida_casing','peso_lb','hora_inicio','hora_fin','area','observaciones']);
+
+  // Calcular tubos directamente desde el array de paquetes
+  const totalCalculado = paquetes.reduce((s, p) => s + (parseInt(p.qty) || 0), 0);
+  
+  // Usar el campo manual si fue editado, si no usar el calculado
+  const campoManual = parseInt(document.getElementById('rc-tubos_totales').value) || 0;
+  d.tubos_totales = campoManual > 0 ? campoManual : totalCalculado;
+
+  if (!d.n_for || !d.codigo_spring || !d.medida_casing || !d.peso_lb || !d.tubos_totales) {
+    mostrarToast('✗ COMPLETA LOS CAMPOS OBLIGATORIOS (*)', 'error'); return;
+  }
+
+  d.tipo_material       = 'CASING';
+  d.paquetes_por_camion = paquetes.length;
+  d.detalle_paquetes    = paquetes.map((p,i) => `PQ${i+1}:${p.qty}T`).join(' | ');
+
+  try {
+    await window.App.recepcionCasing.guardar(d);
+    mostrarToast('✔ RECEPCIÓN GUARDADA OFFLINE');
+    paquetes = [];
+    renderPaquetes();
+    resetForm(['rc-n_for','rc-codigo_spring','rc-n_guia','rc-placa_tracto','rc-operador',
+      'rc-hora_inicio','rc-hora_fin','rc-area','rc-observaciones','rc-tubos_totales']);
+    document.getElementById('rc-medida_casing').value = '';
+    document.getElementById('rc-peso_lb').value = '';
+    document.getElementById('rc-resumen-tubos').textContent = 'Total: 0 paquete(s) | 0 tubos';
+  } catch(e) { mostrarToast('✗ ' + e.message, 'error'); }
+}
+
+// ─── GUARDAR ESTIBADO ────────────────────────────────────────
+async function guardarEstibado() {
+  if (!window.App?.db) { mostrarToast('⏳ SISTEMA INICIANDO...'); return; }
+  const d = leerForm('est-', ['fecha','montacarga','hora_inicio','hora_fin','codigo',
+    'medida','peso_lb','pasillo','rack','paquetes','tub_paquete','total_tuberias',
+    'filas','tub_fila','observaciones']);
+  if (!d.codigo || !d.medida || !d.pasillo || !d.rack || !d.total_tuberias) {
+    mostrarToast('✗ COMPLETA: CÓDIGO, MEDIDA, PASILLO, RACK Y TOTAL TUBOS', 'error'); return;
+  }
+  d.descripcion = `CASING ${d.medida}" ${d.peso_lb}LB`;
+  try {
+    await window.App.db.encolar('estibado_casing', d);
+    mostrarToast('✔ ESTIBADO GUARDADO OFFLINE');
+    resetForm(['est-montacarga','est-codigo','est-rack','est-paquetes','est-tub_paquete',
+      'est-total_tuberias','est-filas','est-tub_fila','est-observaciones','est-hora_inicio','est-hora_fin']);
+    document.getElementById('est-medida').value  = '';
+    document.getElementById('est-peso_lb').value = '';
+    document.getElementById('est-pasillo').value = '';
+  } catch(e) { mostrarToast('✗ ' + e.message, 'error'); }
+}
+
+// ─── GUARDAR AIB ─────────────────────────────────────────────
+async function guardarRecepcionAIB() {
+  if (!window.App?.recepcionAIB) { mostrarToast('⏳ SISTEMA INICIANDO...'); return; }
+  const d = leerForm('aib-', ['fecha','n_container','n_for_bl','n_orden','codigo_spring',
+    'sku_modelo','descripcion','cantidad','um','n_paquetes','rack','responsable']);
+  d.pasillo = '1.4';
+  if (!d.n_container || !d.sku_modelo) {
+    mostrarToast('✗ SELECCIONA CONTAINER Y MODELO AIB', 'error'); return;
+  }
+  try {
+    await window.App.recepcionAIB.guardar(d, plItems);
+    mostrarToast('✔ AIB GUARDADO OFFLINE');
+    plItems = [];
+    renderPL();
+    resetForm(['aib-n_for_bl','aib-n_orden','aib-codigo_spring','aib-descripcion',
+      'aib-cantidad','aib-n_paquetes','aib-rack','aib-responsable']);
+    document.getElementById('aib-n_container').value = '';
+    document.getElementById('aib-sku_modelo').value  = '';
+    document.getElementById('aib-um').value = 'UND';
+    document.getElementById('aib-cantidad').value = '1';
+  } catch(e) { mostrarToast('✗ ' + e.message, 'error'); }
+}
+
+// ─── DESPACHO ────────────────────────────────────────────────
+function toggleDespacho() {
+  const tipo = document.getElementById('dp-tipo').value;
+  document.getElementById('campos-casing-dp').style.display = tipo === 'casing' ? 'grid' : 'none';
+  document.getElementById('campos-aib-dp').style.display    = tipo === 'aib'    ? 'grid' : 'none';
+}
+
+function validarStock() {
+  const stock = parseInt(document.getElementById('dp-stock_actual').value) || 0;
+  const desp  = parseInt(document.getElementById('dp-tubos_despachar').value) || 0;
+  document.getElementById('aviso-stock').style.display = (stock > 0 && desp > stock) ? 'block' : 'none';
+}
+
+async function guardarDespacho() {
+  if (!window.App?.despacho) { mostrarToast('⏳ SISTEMA INICIANDO...'); return; }
+  const tipo = document.getElementById('dp-tipo').value;
+  const base = leerForm('dp-', ['fecha','hora_inicio','hora_fin','n_rq','n_guia',
+    'n_orden','codigo','pozo_destino','area','transportista','placa','operador','observaciones']);
+  if (!base.n_rq || !base.pozo_destino) {
+    mostrarToast('✗ N° RQ Y POZO DESTINO SON OBLIGATORIOS', 'error'); return;
+  }
+  try {
+    if (tipo === 'casing') {
+      const tubos = parseInt(document.getElementById('dp-tubos_despachar').value) || 0;
+      const stock = parseInt(document.getElementById('dp-stock_actual').value) || 0;
+      if (tubos <= 0) { mostrarToast('✗ INDICA CUÁNTOS TUBOS DESPACHAR', 'error'); return; }
+      if (stock > 0 && tubos > stock) { mostrarToast('✗ CANTIDAD SUPERA EL STOCK DISPONIBLE', 'error'); return; }
+      await window.App.despacho.guardarCasing({ ...base,
+        medida_casing: document.getElementById('dp-medida_casing').value,
+        peso_lb:       document.getElementById('dp-peso_lb').value,
+        pasillo:       document.getElementById('dp-pasillo').value,
+        rack:          document.getElementById('dp-rack').value,
+        tubos_totales: tubos,
+        stock_antes:   stock,
+        codigo_spring: base.codigo,
+        tipo_material: 'CASING',
+      });
+    } else {
+      await window.App.despacho.guardarAIB({ ...base,
+        n_container:      document.getElementById('dp-n_container').value,
+        sku_modelo:       document.getElementById('dp-sku_modelo').value,
+        pasillo:          document.getElementById('dp-pasillo-aib').value,
+        rack:             document.getElementById('dp-rack-aib').value,
+        cantidad:         document.getElementById('dp-cantidad_aib').value,
+        um:               document.getElementById('dp-um_aib').value,
+        estado_equipo:    document.getElementById('dp-estado_equipo').value,
+        ubicacion_salida: document.getElementById('dp-ubicacion_salida').value,
+      });
+    }
+    mostrarToast('✔ DESPACHO GUARDADO OFFLINE');
+    resetDespacho();
+  } catch(e) { mostrarToast('✗ ' + e.message, 'error'); }
+}
+
+function resetDespacho() {
+  ['dp-n_rq','dp-n_guia','dp-n_orden','dp-codigo','dp-pozo_destino','dp-area',
+   'dp-transportista','dp-placa','dp-operador','dp-observaciones',
+   'dp-medida_casing','dp-peso_lb','dp-pasillo','dp-rack','dp-stock_actual','dp-tubos_despachar',
+   'dp-n_container','dp-sku_modelo','dp-rack-aib','dp-ubicacion_salida','dp-hora_inicio','dp-hora_fin']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('aviso-stock').style.display = 'none';
+  document.getElementById('info-rack-box').style.display = 'none';
+  document.getElementById('dp-cantidad_aib').value = '1';
+  document.getElementById('dp-um_aib').value = 'UND';
+  document.getElementById('dp-pasillo-aib').value = '1.4';
+}
+
+// ─── SCANNER ─────────────────────────────────────────────────
+function abrirScanner(ctx) {
+  if (!window.App) { mostrarToast('⏳ SISTEMA INICIANDO...'); return; }
+  document.getElementById('scanner-overlay').classList.add('activo');
+  window.App.escaner.iniciarCamara(document.getElementById('video-qr'), onQRDetectado);
+}
+function cerrarScanner() {
+  document.getElementById('scanner-overlay').classList.remove('activo');
+  if (window.App) window.App.escaner.detener();
+}
+function procesarManual() {
+  const val = document.getElementById('input-manual-qr').value.trim().toUpperCase();
+  if (val) onQRDetectado(val, null);
+}
+function onQRDetectado(rawValue, material) {
+  cerrarScanner();
+  try {
+    const datos = JSON.parse(rawValue);
+    if (datos.tipo === 'casing') {
+      document.getElementById('dp-tipo').value          = 'casing';
+      document.getElementById('dp-codigo').value        = datos.codigo || '';
+      document.getElementById('dp-medida_casing').value = datos.medida || '';
+      document.getElementById('dp-peso_lb').value       = datos.peso_lb || '';
+      document.getElementById('dp-pasillo').value       = datos.pasillo || '';
+      document.getElementById('dp-rack').value          = datos.rack || '';
+      document.getElementById('dp-stock_actual').value  = datos.stock || '';
+      toggleDespacho();
+      document.getElementById('info-rack-texto').textContent =
+        `PASILLO ${datos.pasillo} | RACK ${datos.rack} | ${datos.medida}" ${datos.peso_lb || ''}LB | STOCK: ${datos.stock} TUBOS`;
+      document.getElementById('info-rack-box').style.display = 'block';
+      mostrarToast('✔ RACK CARGADO DESDE QR');
+    } else if (datos.tipo === 'aib') {
+      document.getElementById('dp-tipo').value          = 'aib';
+      document.getElementById('dp-n_container').value  = datos.n_container || '';
+      document.getElementById('dp-sku_modelo').value   = datos.sku || '';
+      document.getElementById('dp-rack-aib').value     = datos.rack || '';
+      toggleDespacho();
+      mostrarToast('✔ EQUIPO AIB CARGADO DESDE QR');
+    }
+  } catch(_) {
+    document.getElementById('dp-codigo').value = rawValue;
+    mostrarToast('CÓDIGO ESCANEADO. COMPLETE LOS CAMPOS RESTANTES.');
+  }
+}
+
+// ─── INVENTARIO ──────────────────────────────────────────────
+async function cargarInventario() {
+  if (!navigator.onLine) { mostrarToast('SIN CONEXIÓN. CONECTE AL WI-FI.'); return; }
+  mostrarToast('CARGANDO INVENTARIO...');
+  try {
+    const url = (typeof CONFIG !== 'undefined' ? CONFIG.APPS_SCRIPT_URL : '') + '?accion=inventario';
+    const resp = await fetch(url);
+    const json = await resp.json();
+    if (json.codigo === 200) renderInventario(json.data);
+    else mostrarToast('ERROR AL CARGAR', 'error');
+  } catch(e) { mostrarToast('ERROR DE CONEXIÓN', 'error'); }
+}
+
+function renderInventario(items) {
+  const cont = document.getElementById('tabla-inventario-container');
+  if (!items?.length) { cont.innerHTML = '<p style="color:var(--muted);font-size:13px;">SIN REGISTROS</p>'; return; }
+  cont.innerHTML = `<div style="overflow-x:auto;"><table class="tabla-inv">
+    <thead><tr><th>CÓDIGO</th><th>DESCRIPCIÓN</th><th>PASILLO</th><th>RACK</th><th>STOCK</th><th>ESTADO</th></tr></thead>
+    <tbody>${items.map(r => {
+      const stock = parseInt(r.STOCK_ACTUAL) || 0;
+      const badge = stock === 0
+        ? '<span class="badge badge-free">LIBRE</span>'
+        : stock < 50 ? '<span class="badge badge-low">BAJO</span>'
+        : '<span class="badge badge-ok">OK</span>';
+      return `<tr><td>${r.CODIGO||''}</td><td>${r.DESCRIPCION||''}</td><td>${r.PASILLO||'—'}</td><td>${r.RACK||'—'}</td><td><strong>${stock}</strong></td><td>${badge}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────────
+async function actualizarDashboard() {
+  if (!window.App) return;
+  const p = await window.App.db.obtenerPendientes();
+  const tubos = p.filter(r => r.tipo === 'recepcion_casing').reduce((s,r) => s + parseInt(r.data.tubos_totales||0), 0);
+  document.getElementById('kpi-pendientes').textContent = p.length;
+  document.getElementById('kpi-tubos').textContent      = tubos || '0';
+  document.getElementById('kpi-aibs').textContent       = p.filter(r => r.tipo === 'recepcion_aib').length;
+  document.getElementById('kpi-despachos').textContent  = p.filter(r => r.tipo.includes('despacho')).length;
+}
+
+// ─── COLA SYNC ───────────────────────────────────────────────
+async function actualizarCola() {
+  if (!window.App) return;
+  const p = await window.App.db.obtenerPendientes();
+  const cont = document.getElementById('lista-cola');
+  if (!p.length) { cont.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;">✔ NO HAY REGISTROS PENDIENTES</p>'; return; }
+  cont.innerHTML = p.map(r => `
+    <div class="sync-item">
+      <div>
+        <strong>${r.tipo.toUpperCase().replace(/_/g,' ')}</strong>
+        <div style="font-family:monospace;font-size:10px;color:var(--muted)">${r.uuid.slice(0,20)}...</div>
+        <div style="font-size:11px;color:var(--muted)">${r.fecha.split('T')[0]}</div>
+      </div>
+      <div class="sync-dot dot-${r.estado}" title="${r.estado.toUpperCase()}"></div>
+    </div>`).join('');
+}
+
+async function forzarSync() {
+  if (!window.App) return;
+  if (navigator.onLine) { await window.App.sync.sincronizar(); actualizarCola(); }
+  else mostrarToast('SIN CONEXIÓN. CONECTE AL WI-FI DE LA OFICINA.');
+}
+
+// ─── UTILIDADES ──────────────────────────────────────────────
+function leerForm(prefijo, campos) {
+  return campos.reduce((obj, c) => {
+    const el = document.getElementById(prefijo + c);
+    obj[c] = el ? el.value.trim() : '';
+    return obj;
+  }, {});
+}
+
+function resetForm(ids) {
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+}
+
+function mostrarToast(msg, tipo) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'visible' + (tipo === 'error' ? ' error' : '');
+  setTimeout(() => t.className = '', 4000);
+}
+
+// ─── INIT ────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  const hoy = new Date().toISOString().split('T')[0];
+  ['rc-fecha','aib-fecha','dp-fecha','est-fecha'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = hoy;
+  });
+
+  await initApp();
+  actualizarSelectsAIB();
+  renderCatalogo();
+  renderPL();
+  agregarPaquete(7);
+
+  window.addEventListener('online',  () => document.getElementById('estado-conexion').textContent = '🟢 Online');
+  window.addEventListener('offline', () => document.getElementById('estado-conexion').textContent = '🔴 Offline');
+  document.getElementById('estado-conexion').textContent = navigator.onLine ? '🟢 Online' : '🔴 Offline';
+  console.log('[INDEX] App lista:', !!window.App);
+});
+</script>
+</body>
+</html>
