@@ -274,23 +274,34 @@
       <div class="campo"><label>Código Spring / SKU</label><input type="text" id="dp-codigo"></div>
     </div>
 
-    <!-- INFO RACK (cargada desde QR) -->
-    <div id="info-rack-box" style="display:none;" class="info-box" style="margin-top:10px;">
-      <strong>RACK ESCANEADO:</strong> <span id="info-rack-texto"></span>
+    <!-- INFO RACK (cargada desde QR o selector) -->
+    <div id="info-rack-box" style="display:none;" class="info-box">
+      <strong>RACK SELECCIONADO:</strong> <span id="info-rack-texto"></span>
     </div>
 
     <!-- CAMPOS CASING -->
-    <div class="form-grid" id="campos-casing-dp" style="margin-top:10px;">
-      <div class="campo"><label>Medida Casing</label><input type="text" id="dp-medida_casing" readonly></div>
-      <div class="campo"><label>Peso (LB)</label><input type="text" id="dp-peso_lb" readonly></div>
-      <div class="campo"><label>Pasillo <span class="req">*</span></label><input type="text" id="dp-pasillo"></div>
-      <div class="campo"><label>N° Rack <span class="req">*</span></label><input type="text" id="dp-rack"></div>
-      <div class="campo"><label>Stock Disponible</label><input type="number" id="dp-stock_actual" readonly></div>
-      <div class="campo"><label>Tubos a Despachar <span class="req">*</span></label>
-        <input type="number" id="dp-tubos_despachar" min="1" oninput="validarStock()">
+    <div id="campos-casing-dp" style="margin-top:10px;">
+      <div class="info-box" style="margin-bottom:8px;">
+        Con conexión: selecciona el rack de la lista. Sin conexión: escribe los datos manualmente.
       </div>
-      <div class="campo full" id="aviso-stock" style="display:none;">
-        <div class="warn-box">⚠ CANTIDAD SUPERA EL STOCK DISPONIBLE</div>
+      <div class="campo" style="margin-bottom:10px;" id="campo-rack-select">
+        <label>Seleccionar Rack (solo racks con stock)</label>
+        <select id="dp-rack-select" onchange="onRackSeleccionado()">
+          <option value="">-- SELECCIONAR RACK --</option>
+        </select>
+      </div>
+      <div class="form-grid">
+        <div class="campo"><label>Medida Casing</label><input type="text" id="dp-medida_casing" placeholder="5 1/2"></div>
+        <div class="campo"><label>Peso (LB)</label><input type="text" id="dp-peso_lb" placeholder="15.5"></div>
+        <div class="campo"><label>Pasillo <span class="req">*</span></label><input type="text" id="dp-pasillo" placeholder="1.1"></div>
+        <div class="campo"><label>N° Rack <span class="req">*</span></label><input type="text" id="dp-rack" placeholder="R-01"></div>
+        <div class="campo"><label>Stock Disponible</label><input type="number" id="dp-stock_actual" placeholder="0"></div>
+        <div class="campo"><label>Tubos a Despachar <span class="req">*</span></label>
+          <input type="number" id="dp-tubos_despachar" min="1" oninput="validarStock()">
+        </div>
+        <div class="campo full" id="aviso-stock" style="display:none;">
+          <div class="warn-box">⚠ CANTIDAD SUPERA EL STOCK DISPONIBLE</div>
+        </div>
       </div>
     </div>
 
@@ -338,10 +349,10 @@
 <!-- ═══ DASHBOARD ═══ -->
 <section class="pagina" id="pag-dashboard">
   <div class="kpi-grid">
-    <div class="kpi-card"><div class="kpi-valor" id="kpi-tubos">—</div><div class="kpi-label">Tubos en cola</div></div>
-    <div class="kpi-card"><div class="kpi-valor" id="kpi-pendientes">—</div><div class="kpi-label">Pendientes sync</div></div>
-    <div class="kpi-card"><div class="kpi-valor" id="kpi-aibs">—</div><div class="kpi-label">AIBs en cola</div></div>
-    <div class="kpi-card"><div class="kpi-valor" id="kpi-despachos">—</div><div class="kpi-label">Despachos en cola</div></div>
+    <div class="kpi-card"><div class="kpi-valor" id="kpi-tubos">—</div><div class="kpi-label">Total tubos recibidos</div></div>
+    <div class="kpi-card"><div class="kpi-valor" id="kpi-pendientes">—</div><div class="kpi-label">N° recepciones</div></div>
+    <div class="kpi-card"><div class="kpi-valor" id="kpi-aibs">—</div><div class="kpi-label">Productividad prom. (tub/h)</div></div>
+    <div class="kpi-card"><div class="kpi-valor" id="kpi-despachos">—</div><div class="kpi-label">Eficiencia promedio</div></div>
   </div>
   <div class="card">
     <h2>🗺 MAPA DE PASILLOS</h2>
@@ -412,7 +423,8 @@ function mostrarPagina(id, btn) {
   if (btn) btn.classList.add('active');
   if (id === 'dashboard') actualizarDashboard();
   if (id === 'cola-sync') actualizarCola();
-  if (id === 'catalogo') renderCatalogo();
+  if (id === 'catalogo')  renderCatalogo();
+  if (id === 'despacho' && navigator.onLine) cargarRacks();
 }
 
 // ─── PAQUETES DETALLADOS ─────────────────────────────────────
@@ -593,25 +605,14 @@ function actualizarSelectsAIB() {
 // ─── GUARDAR RECEPCIÓN CASING ────────────────────────────────
 async function guardarRecepcionCasing() {
   if (!window.App?.recepcionCasing) { mostrarToast('⏳ SISTEMA INICIANDO...'); return; }
-  
   const d = leerForm('rc-', ['fecha','n_for','codigo_spring','n_guia','placa_tracto',
-    'operador','medida_casing','peso_lb','hora_inicio','hora_fin','area','observaciones']);
-
-  // Calcular tubos directamente desde el array de paquetes
-  const totalCalculado = paquetes.reduce((s, p) => s + (parseInt(p.qty) || 0), 0);
-  
-  // Usar el campo manual si fue editado, si no usar el calculado
-  const campoManual = parseInt(document.getElementById('rc-tubos_totales').value) || 0;
-  d.tubos_totales = campoManual > 0 ? campoManual : totalCalculado;
-
+    'operador','medida_casing','peso_lb','hora_inicio','hora_fin','area','observaciones','tubos_totales']);
   if (!d.n_for || !d.codigo_spring || !d.medida_casing || !d.peso_lb || !d.tubos_totales) {
     mostrarToast('✗ COMPLETA LOS CAMPOS OBLIGATORIOS (*)', 'error'); return;
   }
-
   d.tipo_material       = 'CASING';
   d.paquetes_por_camion = paquetes.length;
   d.detalle_paquetes    = paquetes.map((p,i) => `PQ${i+1}:${p.qty}T`).join(' | ');
-
   try {
     await window.App.recepcionCasing.guardar(d);
     mostrarToast('✔ RECEPCIÓN GUARDADA OFFLINE');
@@ -621,7 +622,6 @@ async function guardarRecepcionCasing() {
       'rc-hora_inicio','rc-hora_fin','rc-area','rc-observaciones','rc-tubos_totales']);
     document.getElementById('rc-medida_casing').value = '';
     document.getElementById('rc-peso_lb').value = '';
-    document.getElementById('rc-resumen-tubos').textContent = 'Total: 0 paquete(s) | 0 tubos';
   } catch(e) { mostrarToast('✗ ' + e.message, 'error'); }
 }
 
@@ -639,10 +639,13 @@ async function guardarEstibado() {
     await window.App.db.encolar('estibado_casing', d);
     mostrarToast('✔ ESTIBADO GUARDADO OFFLINE');
     resetForm(['est-montacarga','est-codigo','est-rack','est-paquetes','est-tub_paquete',
-      'est-total_tuberias','est-filas','est-tub_fila','est-observaciones','est-hora_inicio','est-hora_fin']);
-    document.getElementById('est-medida').value  = '';
-    document.getElementById('est-peso_lb').value = '';
-    document.getElementById('est-pasillo').value = '';
+      'est-total_tuberias','est-filas','est-tub_fila','est-observaciones',
+      'est-hora_inicio','est-hora_fin']);
+    document.getElementById('est-medida').value   = '';
+    document.getElementById('est-peso_lb').value  = '';
+    document.getElementById('est-pasillo').value  = '';
+    // Restablecer fecha al día actual
+    document.getElementById('est-fecha').value = new Date().toISOString().split('T')[0];
   } catch(e) { mostrarToast('✗ ' + e.message, 'error'); }
 }
 
@@ -729,11 +732,13 @@ function resetDespacho() {
    'dp-medida_casing','dp-peso_lb','dp-pasillo','dp-rack','dp-stock_actual','dp-tubos_despachar',
    'dp-n_container','dp-sku_modelo','dp-rack-aib','dp-ubicacion_salida','dp-hora_inicio','dp-hora_fin']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  document.getElementById('aviso-stock').style.display = 'none';
+  const sel = document.getElementById('dp-rack-select');
+  if (sel) sel.selectedIndex = 0;
+  document.getElementById('aviso-stock').style.display   = 'none';
   document.getElementById('info-rack-box').style.display = 'none';
-  document.getElementById('dp-cantidad_aib').value = '1';
-  document.getElementById('dp-um_aib').value = 'UND';
-  document.getElementById('dp-pasillo-aib').value = '1.4';
+  document.getElementById('dp-cantidad_aib').value  = '1';
+  document.getElementById('dp-um_aib').value        = 'UND';
+  document.getElementById('dp-pasillo-aib').value   = '1.4';
 }
 
 // ─── SCANNER ─────────────────────────────────────────────────
@@ -782,42 +787,154 @@ function onQRDetectado(rawValue, material) {
 }
 
 // ─── INVENTARIO ──────────────────────────────────────────────
+// Cache de racks con stock para despacho manual
+let racksCache = [];
+
 async function cargarInventario() {
   if (!navigator.onLine) { mostrarToast('SIN CONEXIÓN. CONECTE AL WI-FI.'); return; }
   mostrarToast('CARGANDO INVENTARIO...');
   try {
-    const url = (typeof CONFIG !== 'undefined' ? CONFIG.APPS_SCRIPT_URL : '') + '?accion=inventario';
+    const url  = window.App.SCRIPT_URL + '?accion=inventario';
     const resp = await fetch(url);
     const json = await resp.json();
-    if (json.codigo === 200) renderInventario(json.data);
-    else mostrarToast('ERROR AL CARGAR', 'error');
-  } catch(e) { mostrarToast('ERROR DE CONEXIÓN', 'error'); }
+    if (json.codigo === 200) {
+      renderInventario(json.data);
+    } else {
+      mostrarToast('ERROR AL CARGAR: ' + json.mensaje, 'error');
+    }
+  } catch(e) {
+    mostrarToast('ERROR DE CONEXIÓN: ' + e.message, 'error');
+  }
+}
+
+async function cargarRacks() {
+  if (!navigator.onLine) return;
+  try {
+    const url  = window.App.SCRIPT_URL + '?accion=racks';
+    const resp = await fetch(url);
+    const json = await resp.json();
+    if (json.codigo === 200) {
+      // Solo racks con stock > 0
+      racksCache = (json.data || []).filter(r => parseInt(r.STOCK_ACTUAL) > 0);
+      actualizarSelectorRacks();
+    }
+  } catch(e) { console.log('[RACKS] Error:', e.message); }
+}
+
+function actualizarSelectorRacks() {
+  const sel = document.getElementById('dp-rack-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- SELECCIONAR RACK (con stock) --</option>' +
+    racksCache.map(r =>
+      `<option value="${r.ID_RACK}" data-medida="${r.MEDIDA||''}" data-peso="${r.PESO_LB||''}" data-stock="${r.STOCK_ACTUAL||0}" data-pasillo="${r.PASILLO||''}" data-rack="${r.RACK||''}" data-codigo="${r.CODIGO||''}">
+        ${r.PASILLO} – RACK ${r.RACK} | ${r.MEDIDA||''} ${r.PESO_LB||''}LB | STOCK: ${r.STOCK_ACTUAL} TUBOS
+      </option>`
+    ).join('');
+}
+
+function onRackSeleccionado() {
+  const sel = document.getElementById('dp-rack-select');
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) return;
+  document.getElementById('dp-medida_casing').value = opt.dataset.medida || '';
+  document.getElementById('dp-peso_lb').value       = opt.dataset.peso   || '';
+  document.getElementById('dp-stock_actual').value  = opt.dataset.stock  || '';
+  document.getElementById('dp-pasillo').value       = opt.dataset.pasillo|| '';
+  document.getElementById('dp-rack').value          = opt.dataset.rack   || '';
+  document.getElementById('dp-codigo').value        = opt.dataset.codigo || '';
+  document.getElementById('info-rack-texto').textContent =
+    `PASILLO ${opt.dataset.pasillo} | RACK ${opt.dataset.rack} | ${opt.dataset.medida}" ${opt.dataset.peso}LB | STOCK: ${opt.dataset.stock} TUBOS`;
+  document.getElementById('info-rack-box').style.display = 'block';
+  validarStock();
 }
 
 function renderInventario(items) {
   const cont = document.getElementById('tabla-inventario-container');
-  if (!items?.length) { cont.innerHTML = '<p style="color:var(--muted);font-size:13px;">SIN REGISTROS</p>'; return; }
+  if (!items?.length) {
+    cont.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;">SIN REGISTROS EN INVENTARIO</p>';
+    return;
+  }
   cont.innerHTML = `<div style="overflow-x:auto;"><table class="tabla-inv">
-    <thead><tr><th>CÓDIGO</th><th>DESCRIPCIÓN</th><th>PASILLO</th><th>RACK</th><th>STOCK</th><th>ESTADO</th></tr></thead>
+    <thead><tr><th>DESCRIPCIÓN</th><th>PASILLO</th><th>RACK</th><th>STOCK</th><th>ESTADO</th></tr></thead>
     <tbody>${items.map(r => {
       const stock = parseInt(r.STOCK_ACTUAL) || 0;
       const badge = stock === 0
         ? '<span class="badge badge-free">LIBRE</span>'
         : stock < 50 ? '<span class="badge badge-low">BAJO</span>'
         : '<span class="badge badge-ok">OK</span>';
-      return `<tr><td>${r.CODIGO||''}</td><td>${r.DESCRIPCION||''}</td><td>${r.PASILLO||'—'}</td><td>${r.RACK||'—'}</td><td><strong>${stock}</strong></td><td>${badge}</td></tr>`;
+      return `<tr>
+        <td>${r.DESCRIPCION||r.CODIGO||''}</td>
+        <td>${r.PASILLO||'—'}</td>
+        <td>${r.RACK||'—'}</td>
+        <td><strong>${stock}</strong></td>
+        <td>${badge}</td>
+      </tr>`;
     }).join('')}</tbody></table></div>`;
 }
 
-// ─── DASHBOARD ───────────────────────────────────────────────
+// ─── DASHBOARD (datos reales desde Sheets) ───────────────────
 async function actualizarDashboard() {
   if (!window.App) return;
-  const p = await window.App.db.obtenerPendientes();
-  const tubos = p.filter(r => r.tipo === 'recepcion_casing').reduce((s,r) => s + parseInt(r.data.tubos_totales||0), 0);
-  document.getElementById('kpi-pendientes').textContent = p.length;
-  document.getElementById('kpi-tubos').textContent      = tubos || '0';
-  document.getElementById('kpi-aibs').textContent       = p.filter(r => r.tipo === 'recepcion_aib').length;
-  document.getElementById('kpi-despachos').textContent  = p.filter(r => r.tipo.includes('despacho')).length;
+
+  // Mostrar indicadores de carga
+  ['kpi-tubos','kpi-pendientes','kpi-aibs','kpi-despachos'].forEach(id => {
+    document.getElementById(id).textContent = '...';
+  });
+
+  if (!navigator.onLine) {
+    ['kpi-tubos','kpi-pendientes','kpi-aibs','kpi-despachos'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+    mostrarToast('SIN CONEXIÓN. CONECTE AL WI-FI PARA VER EL DASHBOARD.');
+    return;
+  }
+
+  try {
+    const url  = window.App.SCRIPT_URL + '?accion=kpis_casing';
+    const resp = await fetch(url);
+    const json = await resp.json();
+    if (json.codigo === 200) {
+      const d = json.data;
+      document.getElementById('kpi-tubos').textContent      = d.total_tubos || '0';
+      document.getElementById('kpi-pendientes').textContent = d.total_recepciones || '0';
+      document.getElementById('kpi-aibs').textContent       = d.productividad_promedio || '0';
+      document.getElementById('kpi-despachos').textContent  = d.eficiencia_promedio + '%' || '0%';
+    }
+  } catch(e) {
+    ['kpi-tubos','kpi-pendientes','kpi-aibs','kpi-despachos'].forEach(id => {
+      document.getElementById(id).textContent = 'ERR';
+    });
+  }
+
+  // Cargar mapa de racks
+  try {
+    const url2  = window.App.SCRIPT_URL + '?accion=racks';
+    const resp2 = await fetch(url2);
+    const json2 = await resp2.json();
+    if (json2.codigo === 200) renderMapaPasillos(json2.data || []);
+  } catch(_) {}
+}
+
+function renderMapaPasillos(racks) {
+  const pasillos = { '1.1': [], '1.2': [], '1.3': [], '1.4': [] };
+  racks.forEach(r => {
+    const p = r.PASILLO;
+    if (pasillos[p]) pasillos[p].push(r);
+  });
+  Object.entries(pasillos).forEach(([p, lista]) => {
+    const elId = 'racks-' + p.replace('.', '-');
+    const el   = document.getElementById(elId);
+    if (!el) return;
+    if (!lista.length) { el.innerHTML = '<p style="color:var(--muted);font-size:11px;">Sin racks registrados</p>'; return; }
+    el.innerHTML = lista.map(r => {
+      const stock  = parseInt(r.STOCK_ACTUAL) || 0;
+      const color  = stock === 0 ? '#2A9D8F' : stock < 50 ? '#E9C46A' : '#1D3557';
+      return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid #f0f0f0;">
+        <span>RACK ${r.RACK}</span>
+        <span style="color:${color};font-weight:700;">${stock === 0 ? 'LIBRE' : stock + ' TUB'}</span>
+      </div>`;
+    }).join('');
+  });
 }
 
 // ─── COLA SYNC ───────────────────────────────────────────────
