@@ -956,13 +956,13 @@ function renderInventarioAgrupado(racks) {
           <span style="font-size:10px;margin-left:4px;">${cap>0?pct+'%':''}</span>
         </td>
         <td>${badge}</td>
-        <td style="font-size:11px;color:var(--muted);">${r.ESTADO||''}</td>
+        
       </tr>`;
     }).join('');
     return `<div class="pasillo-grupo">
       <div class="pasillo-titulo">PASILLO ${pasillo} — ${lista.length} rack(s)</div>
       <table class="rack-tabla">
-        <thead><tr><th>RACK</th><th>CONTENIDO</th><th>STOCK</th><th>OCUPACIÓN</th><th>ESTADO</th><th>OPERATIVO</th></tr></thead>
+        <thead><tr><th>RACK</th><th>CONTENIDO</th><th>STOCK</th><th>OCUPACIÓN</th><th>ESTADO</th></tr></thead>
         <tbody>${filas}</tbody>
       </table>
     </div>`;
