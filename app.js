@@ -3,7 +3,7 @@
 // ============================================================
 
 const CONFIG = {
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/TU_DEPLOYMENT_ID/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycby9UIJfk3yg_gP9bGebgQBenPepsYsrEQkSG_my-5dk1-GXjjNknlF09rE3Xq2SmzQ/exec',
   DB_NAME:         'LogisticaZapotalDB',
   DB_VERSION:      2,
   SYNC_INTERVAL:   30000,
