@@ -3,9 +3,9 @@
 // ============================================================
 
 const CONFIG = {
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyKgu6san2wJuZKAo4hNwgnwwtP2uJGqPxQyBMhKXF_Yw6T74DmzgG6cYpjImOKohMt/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyofGDXRsnsWWmaVltJ4_gM6_3R8JsS0Idlg9BmoI1wp0JPlyDLvyEkIa-sDS7QfhGo/exec',
   DB_NAME:         'LogisticaZapotalDB',
-  DB_VERSION:      2,
+  DB_VERSION:      3,  // incrementado para limpiar cache_racks con formato viejo
   SYNC_INTERVAL:   30000,
   MEDIDAS_CASING:  ['5 1/2', '9 5/8', '13 3/8'],
   PESOS_CASING:    [15.5, 17, 20, 32.3, 40],
@@ -20,11 +20,18 @@ class DB {
       const req = indexedDB.open(CONFIG.DB_NAME, CONFIG.DB_VERSION);
 
       req.onupgradeneeded = (e) => {
-        const db = e.target.result;
+        const db      = e.target.result;
+        const oldVer  = e.oldVersion;
+
         if (!db.objectStoreNames.contains('sync_queue')) {
           const cola = db.createObjectStore('sync_queue', { keyPath: 'uuid' });
           cola.createIndex('tipo',   'tipo',   { unique: false });
           cola.createIndex('estado', 'estado', { unique: false });
+        }
+        // Recrear cache_racks limpio si venía de versión anterior
+        if (db.objectStoreNames.contains('cache_racks') && oldVer < 3) {
+          db.deleteObjectStore('cache_racks');
+          console.log('[DB] cache_racks recreado limpio (upgrade v3)');
         }
         if (!db.objectStoreNames.contains('cache_racks')) {
           db.createObjectStore('cache_racks', { keyPath: 'ID_RACK' });
@@ -251,15 +258,13 @@ class Sincronizador {
     UI.ocultarSyncBanner();
     if (ok > 0) {
       UI.mostrarToast(`${ok} REGISTRO(S) SINCRONIZADO(S)`);
-      // Refrescar cache de racks con datos actualizados de Sheets
+      // Refrescar todo el cache tras sincronizar
       setTimeout(async () => {
         try {
-          const resp = await fetch(CONFIG.APPS_SCRIPT_URL + '?accion=racks');
-          const json = await resp.json();
-          if (json.codigo === 200 && json.data) {
-            await this.db.guardarCacheRacks(json.data);
-            console.log('[SYNC] Cache de racks actualizado desde Sheets');
-          }
+          await catalogoMgr.sincronizacionCompleta();
+          console.log('[SYNC] Cache completo actualizado');
+          // Notificar al index.html para que refresque los selects
+          if (typeof cargarCatalogoLocal === 'function') await cargarCatalogoLocal();
         } catch (_) {}
       }, 2000);
     }
@@ -412,14 +417,57 @@ class CatalogoManager {
   async sincronizarRacksDesdeSheets() {
     if (!navigator.onLine) return false;
     try {
-      const resp = await fetch(CONFIG.APPS_SCRIPT_URL + '?accion=catalogo_racks');
-      const json = await resp.json();
-      if (json.codigo === 200 && json.data) {
-        await this.db.guardarCacheRacks(json.data);
-        return json.data;
+      // Traer catálogo base (define todos los racks y su capacidad)
+      const r1   = await fetch(CONFIG.APPS_SCRIPT_URL + '?accion=catalogo_racks');
+      const j1   = await r1.json();
+      // Traer stock actual (solo racks que ya fueron estibados)
+      const r2   = await fetch(CONFIG.APPS_SCRIPT_URL + '?accion=racks');
+      const j2   = await r2.json();
+
+      const catalogo = (j1.codigo === 200 && j1.data) ? j1.data : [];
+      const stockMap = {};
+      if (j2.codigo === 200 && j2.data) {
+        j2.data.forEach(r => { stockMap[r.ID_RACK] = parseInt(r.STOCK_ACTUAL || 0); });
+      }
+
+      // Fusionar: el catálogo es la fuente de verdad para la lista de racks
+      // el stockMap aporta el stock actual de cada uno
+      const fusionados = catalogo.map(r => {
+        const idRack = r.ID_RACK || `${r.PASILLO}-${r.N_RACK}`;
+        return {
+          ID_RACK:       idRack,
+          PASILLO:       (r.PASILLO || '').toString().trim(),
+          N_RACK:        (r.N_RACK  || r.RACK || '').toString().trim(),
+          TIPO:          r.TIPO          || 'CASING',
+          MEDIDA:        r.MEDIDA        || '',
+          PESO_LB:       r.PESO_LB       || '',
+          CAPACIDAD_MAX: parseInt(r.CAPACIDAD_MAX || 0),
+          STOCK_ACTUAL:  stockMap[idRack] !== undefined ? stockMap[idRack] : 0,
+          ESTADO:        stockMap[idRack] > 0 ? 'OCUPADO' : 'LIBRE',
+        };
+      });
+
+      console.log('[RACKS] Catálogo crudo:', JSON.stringify(catalogo.slice(0,2)));
+      console.log('[RACKS] Fusionados:', JSON.stringify(fusionados.slice(0,2)));
+      console.log('[RACKS] Total:', fusionados.length);
+
+      if (fusionados.length > 0) {
+        await this.db.guardarCacheRacks(fusionados);
+        console.log(`[RACKS] Cache actualizado: ${fusionados.length} racks`);
+        return fusionados;
       }
     } catch (e) { console.log('[RACKS] Error:', e.message); }
     return null;
+  }
+
+  // Sincronización completa: catálogo AIB + racks + stock
+  async sincronizacionCompleta() {
+    if (!navigator.onLine) return false;
+    const [cat, racks] = await Promise.all([
+      this.sincronizarDesdeSheets(),
+      this.sincronizarRacksDesdeSheets(),
+    ]);
+    return { cat, racks };
   }
 
   async obtenerCatalogoAIB() {
