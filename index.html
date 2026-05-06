@@ -807,9 +807,15 @@ function toggleDespacho() {
   document.getElementById('campos-aib-dp').style.display    = tipo==='aib'    ? 'block' : 'none';
 }
 function validarStock() {
-  const s = parseInt(document.getElementById('dp-stock_actual').value)||0;
-  const d = parseInt(document.getElementById('dp-tubos_despachar').value)||0;
-  document.getElementById('aviso-stock').style.display = (s>0&&d>s) ? 'block' : 'none';
+  const s   = parseInt(document.getElementById('dp-stock_actual').value)||0;
+  const inp = document.getElementById('dp-tubos_despachar');
+  const d   = parseInt(inp.value)||0;
+  // Limitar el valor máximo al stock disponible
+  if (s > 0 && d > s) {
+    inp.value = s;
+    mostrarToast(`MÁXIMO ${s} TUBOS DISPONIBLES`, 'error');
+  }
+  document.getElementById('aviso-stock').style.display = 'none';
 }
 async function guardarDespacho() {
   if (!window.App?.despacho) { mostrarToast('⏳ SISTEMA INICIANDO...'); return; }
@@ -819,18 +825,28 @@ async function guardarDespacho() {
   if (!base.n_rq||!base.pozo_destino) { mostrarToast('✗ N° RQ Y POZO DESTINO SON OBLIGATORIOS', 'error'); return; }
   try {
     if (tipo === 'casing') {
-      const tubos = parseInt(document.getElementById('dp-tubos_despachar').value)||0;
-      const stock = parseInt(document.getElementById('dp-stock_actual').value)||0;
-      if (tubos<=0) { mostrarToast('✗ INDICA CUÁNTOS TUBOS DESPACHAR', 'error'); return; }
-      if (stock>0&&tubos>stock) { mostrarToast('✗ CANTIDAD SUPERA EL STOCK', 'error'); return; }
+      const tubos   = parseInt(document.getElementById('dp-tubos_despachar').value)||0;
+      const pasillo = document.getElementById('dp-pasillo').value.trim();
+      const rack    = document.getElementById('dp-rack').value.trim();
+      if (tubos<=0)       { mostrarToast('✗ INDICA CUÁNTOS TUBOS DESPACHAR', 'error'); return; }
+      if (!pasillo||!rack){ mostrarToast('✗ PASILLO Y RACK SON OBLIGATORIOS', 'error'); return; }
+
+      // La validación de stock y descuento en cache la hace FormDespacho
       await window.App.despacho.guardarCasing({ ...base,
         medida_casing: document.getElementById('dp-medida_casing').value,
         peso_lb:       document.getElementById('dp-peso_lb').value,
-        pasillo:       document.getElementById('dp-pasillo').value,
-        rack:          document.getElementById('dp-rack').value,
-        tubos_totales: tubos, stock_antes: stock,
-        codigo_spring: base.codigo, tipo_material: 'CASING',
+        pasillo, rack,
+        tubos_totales: tubos,
+        codigo_spring: base.codigo,
+        tipo_material: 'CASING',
       });
+
+      // Actualizar el stock mostrado en pantalla con el nuevo valor del cache
+      const idRack   = `${pasillo}-${rack}`;
+      const nuevoSt  = await window.App.db.obtenerStockRack(idRack);
+      const elStock  = document.getElementById('dp-stock_actual');
+      if (elStock && nuevoSt !== null) elStock.value = nuevoSt;
+
     } else {
       await window.App.despacho.guardarAIB({ ...base,
         n_container:      document.getElementById('dp-n_container').value,
@@ -877,23 +893,37 @@ function procesarManual() {
   const val = document.getElementById('input-manual-qr').value.trim().toUpperCase();
   if (val) onQRDetectado(val, null);
 }
-function onQRDetectado(rawValue, _) {
+async function onQRDetectado(rawValue, _) {
   cerrarScanner();
   try {
     const datos = JSON.parse(rawValue);
     if (datos.tipo === 'casing') {
+      // Precargar datos fijos del QR
       document.getElementById('dp-tipo').value          = 'casing';
-      document.getElementById('dp-codigo').value        = datos.codigo||'';
       document.getElementById('dp-medida_casing').value = datos.medida||'';
       document.getElementById('dp-peso_lb').value       = datos.peso_lb||'';
       document.getElementById('dp-pasillo').value       = datos.pasillo||'';
       document.getElementById('dp-rack').value          = datos.rack||'';
-      document.getElementById('dp-stock_actual').value  = datos.stock||'';
+      document.getElementById('dp-codigo').value        = datos.codigo||'';
       toggleDespacho();
+
+      // Consultar stock actual (Sheets si hay conexión, cache si no)
+      const idRack = `${datos.pasillo}-${datos.rack}`;
+      mostrarToast('🔄 CONSULTANDO STOCK...');
+      const stock = await window.App.db.obtenerStockRack(idRack);
+      const fuente = navigator.onLine ? 'SHEETS' : 'CACHE LOCAL';
+
+      document.getElementById('dp-stock_actual').value = stock !== null ? stock : '?';
+      document.getElementById('dp-tubos_despachar').value = '';
+      document.getElementById('aviso-stock').style.display = 'none';
+
       document.getElementById('info-rack-texto').textContent =
-        `PASILLO ${datos.pasillo} | RACK ${datos.rack} | ${datos.medida}" ${datos.peso_lb||''}LB | STOCK: ${datos.stock}`;
+        `PASILLO ${datos.pasillo} | RACK ${datos.rack} | ` +
+        `${datos.medida}" ${datos.peso_lb||''}LB | ` +
+        `STOCK: ${stock !== null ? stock : 'NO DISPONIBLE'} TUBOS (${fuente})`;
       document.getElementById('info-rack-box').style.display = 'block';
-      mostrarToast('✔ RACK CARGADO DESDE QR');
+      mostrarToast(`✔ RACK CARGADO | STOCK: ${stock !== null ? stock : '?'} TUB (${fuente})`);
+
     } else if (datos.tipo === 'aib') {
       document.getElementById('dp-tipo').value         = 'aib';
       document.getElementById('dp-n_container').value = datos.n_container||'';
@@ -903,6 +933,7 @@ function onQRDetectado(rawValue, _) {
       mostrarToast('✔ AIB CARGADO DESDE QR');
     }
   } catch(_) {
+    // QR no es JSON — tratar como código manual
     document.getElementById('dp-codigo').value = rawValue;
     mostrarToast('CÓDIGO ESCANEADO. COMPLETE LOS CAMPOS RESTANTES.');
   }
@@ -956,13 +987,13 @@ function renderInventarioAgrupado(racks) {
           <span style="font-size:10px;margin-left:4px;">${cap>0?pct+'%':''}</span>
         </td>
         <td>${badge}</td>
-        
+        <td style="font-size:11px;color:var(--muted);">${r.ESTADO||''}</td>
       </tr>`;
     }).join('');
     return `<div class="pasillo-grupo">
       <div class="pasillo-titulo">PASILLO ${pasillo} — ${lista.length} rack(s)</div>
       <table class="rack-tabla">
-        <thead><tr><th>RACK</th><th>CONTENIDO</th><th>STOCK</th><th>OCUPACIÓN</th><th>ESTADO</th></tr></thead>
+        <thead><tr><th>RACK</th><th>CONTENIDO</th><th>STOCK</th><th>OCUPACIÓN</th><th>ESTADO</th><th>OPERATIVO</th></tr></thead>
         <tbody>${filas}</tbody>
       </table>
     </div>`;
