@@ -3,7 +3,7 @@
 // ============================================================
 
 const CONFIG = {
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycby9UIJfk3yg_gP9bGebgQBenPepsYsrEQkSG_my-5dk1-GXjjNknlF09rE3Xq2SmzQ/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyKgu6san2wJuZKAo4hNwgnwwtP2uJGqPxQyBMhKXF_Yw6T74DmzgG6cYpjImOKohMt/exec',
   DB_NAME:         'LogisticaZapotalDB',
   DB_VERSION:      2,
   SYNC_INTERVAL:   30000,
@@ -125,6 +125,58 @@ class DB {
     });
   }
 
+  async obtenerRackPorId(idRack) {
+    return new Promise((resolve, reject) => {
+      const tx  = this.db.transaction('cache_racks', 'readonly');
+      const req = tx.objectStore('cache_racks').get(idRack);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror   = () => reject(req.error);
+    });
+  }
+
+  async descontarStockCacheRack(idRack, cantidad) {
+    return new Promise((resolve, reject) => {
+      const tx  = this.db.transaction('cache_racks', 'readwrite');
+      const os  = tx.objectStore('cache_racks');
+      const req = os.get(idRack);
+      req.onsuccess = () => {
+        const rack = req.result;
+        if (!rack) { resolve(null); return; }
+        const stockAntes  = parseInt(rack.STOCK_ACTUAL || 0);
+        rack.STOCK_ACTUAL = Math.max(0, stockAntes - cantidad);
+        rack.ESTADO       = rack.STOCK_ACTUAL === 0 ? 'LIBRE' : 'OCUPADO';
+        const upd = os.put(rack);
+        upd.onsuccess = () => resolve({ stock_antes: stockAntes, stock_despues: rack.STOCK_ACTUAL });
+        upd.onerror   = () => reject(upd.error);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async obtenerStockRack(idRack) {
+    // Consulta Sheets si hay conexión, sino usa cache local
+    if (navigator.onLine) {
+      try {
+        const url  = CONFIG.APPS_SCRIPT_URL + '?accion=buscar_material&codigo=' + encodeURIComponent(idRack);
+        const resp = await fetch(url);
+        const json = await resp.json();
+        if (json.codigo === 200 && json.data && !json.data.error) {
+          // Actualizar cache con dato fresco
+          const rack = await this.obtenerRackPorId(idRack);
+          if (rack) {
+            rack.STOCK_ACTUAL = parseInt(json.data.STOCK_ACTUAL || json.data.stock || 0);
+            const tx = this.db.transaction('cache_racks', 'readwrite');
+            tx.objectStore('cache_racks').put(rack);
+          }
+          return parseInt(json.data.STOCK_ACTUAL || json.data.stock || 0);
+        }
+      } catch (_) { /* fallback a cache */ }
+    }
+    // Sin conexión o error → usar cache local
+    const rack = await this.obtenerRackPorId(idRack);
+    return rack ? parseInt(rack.STOCK_ACTUAL || 0) : null;
+  }
+
   // ─── CACHE CATÁLOGO ──────────────────────────────────────
   async guardarCacheCatalogo(clave, valor) {
     return new Promise((resolve, reject) => {
@@ -197,7 +249,20 @@ class Sincronizador {
 
     console.log(`[SYNC] ✓ ${ok} OK, ✗ ${err} errores`);
     UI.ocultarSyncBanner();
-    if (ok > 0) UI.mostrarToast(`${ok} REGISTRO(S) SINCRONIZADO(S)`);
+    if (ok > 0) {
+      UI.mostrarToast(`${ok} REGISTRO(S) SINCRONIZADO(S)`);
+      // Refrescar cache de racks con datos actualizados de Sheets
+      setTimeout(async () => {
+        try {
+          const resp = await fetch(CONFIG.APPS_SCRIPT_URL + '?accion=racks');
+          const json = await resp.json();
+          if (json.codigo === 200 && json.data) {
+            await this.db.guardarCacheRacks(json.data);
+            console.log('[SYNC] Cache de racks actualizado desde Sheets');
+          }
+        } catch (_) {}
+      }, 2000);
+    }
     this.corriendo = false;
   }
 }
@@ -242,10 +307,44 @@ class FormRecepcionAIB {
 class FormDespacho {
   constructor(db) { this.db = db; }
 
+  async validarYObtenerStock(pasillo, rack) {
+    const idRack = `${pasillo}-${rack}`;
+    const stock  = await this.db.obtenerStockRack(idRack);
+    return { idRack, stock };
+  }
+
   async guardarCasing(datos) {
     if (!datos.n_rq || !datos.pozo_destino)
       throw new Error('N° RQ Y POZO DESTINO SON REQUERIDOS');
-    return await this.db.encolar('despacho_casing', datos);
+
+    const tubos  = parseInt(datos.tubos_totales) || 0;
+    const idRack = `${datos.pasillo}-${datos.rack}`;
+
+    // Obtener stock actual (Sheets si hay conexión, cache si no)
+    const stockActual = await this.db.obtenerStockRack(idRack);
+
+    if (stockActual !== null && tubos > stockActual) {
+      const conexion = navigator.onLine ? 'SHEETS' : 'CACHE LOCAL';
+      throw new Error(
+        `STOCK INSUFICIENTE (${conexion}): disponible ${stockActual} tubos, solicitado ${tubos}. ` +
+        `MÁXIMO A DESPACHAR: ${stockActual} TUBOS.`
+      );
+    }
+
+    // Encolar el despacho
+    const uuid = await this.db.encolar('despacho_casing', {
+      ...datos,
+      stock_antes:   stockActual,
+      con_conexion:  navigator.onLine,
+    });
+
+    // Descontar inmediatamente del cache local
+    if (stockActual !== null) {
+      await this.db.descontarStockCacheRack(idRack, tubos);
+      console.log(`[DESPACHO] Cache descontado: ${idRack} ${stockActual} → ${stockActual - tubos}`);
+    }
+
+    return uuid;
   }
 
   async guardarAIB(datos) {
@@ -443,3 +542,4 @@ async function initApp() {
   }
 }
 
+document.addEventListener('DOMContentLoaded', initApp);
