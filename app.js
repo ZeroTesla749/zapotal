@@ -541,5 +541,5 @@ async function initApp() {
     alert('Error al iniciar la aplicación: ' + e.message);
   }
 }
-document.addEventListener('DOMContentLoaded', initApp);
+//document.addEventListener('DOMContentLoaded', initApp);
 
