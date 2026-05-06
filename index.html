@@ -283,11 +283,17 @@
     <!-- CAMPOS CASING -->
     <div id="campos-casing-dp" style="margin-top:10px;">
       <div class="info-box">Con conexión usa el selector. Sin conexión escribe manualmente.</div>
-      <div class="campo" style="margin-bottom:10px;">
-        <label>Seleccionar Rack (con stock disponible)</label>
-        <select id="dp-rack-select" onchange="onRackSeleccionado()">
-          <option value="">-- SELECCIONAR RACK --</option>
-        </select>
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
+        <div class="campo" style="flex:1;">
+          <label>Seleccionar Rack (con stock disponible)</label>
+          <select id="dp-rack-select" onchange="onRackSeleccionado()">
+            <option value="">-- SELECCIONAR RACK --</option>
+          </select>
+        </div>
+        <button class="btn btn-success btn-sm" onclick="sincronizarYRefrescar()"
+          style="margin-top:18px;white-space:nowrap;" title="Sincronizar pendientes y actualizar stock">
+          🔄 SYNC
+        </button>
       </div>
       <div class="form-grid">
         <div class="campo"><label>Medida Casing</label><input type="text" id="dp-medida_casing" placeholder="5 1/2"></div>
@@ -583,10 +589,19 @@ let catRacks  = [];
 async function cargarCatalogoLocal() {
   if (!window.App) return;
   try {
-    const cat = await window.App.catalogo.obtenerCatalogoAIB();
+    const cat   = await window.App.catalogo.obtenerCatalogoAIB();
     if (cat) catLocal = cat;
     const racks = await window.App.db.obtenerCacheRacks();
-    if (racks) catRacks = racks;
+    if (racks) {
+      // Deduplicar por ID_RACK antes de asignar al array global
+      const vistos = new Set();
+      catRacks = racks.filter(r => {
+        const k = r.ID_RACK || `${r.PASILLO}-${r.N_RACK}`;
+        if (vistos.has(k)) return false;
+        vistos.add(k);
+        return true;
+      });
+    }
   } catch(e) { console.log('[CAT]', e.message); }
   actualizarSelectsAIB();
   actualizarSelectsRacks();
@@ -607,9 +622,18 @@ function actualizarSelectsAIB() {
 }
 
 function actualizarSelectsRacks() {
-  // Pasillos únicos para estibado
-  const pasillos = [...new Set(catRacks.map(r => r.PASILLO).filter(Boolean))].sort();
-  const selPas = document.getElementById('est-pasillo');
+  // Deduplicar pasillos por ID_RACK para evitar duplicados
+  const vistos   = new Set();
+  const unicos   = catRacks.filter(r => {
+    const k = r.ID_RACK || `${r.PASILLO}-${r.N_RACK}`;
+    if (vistos.has(k)) return false;
+    vistos.add(k);
+    return true;
+  });
+  catRacks = unicos; // limpiar duplicados del array global
+
+  const pasillos = [...new Set(unicos.map(r => r.PASILLO).filter(Boolean))].sort();
+  const selPas   = document.getElementById('est-pasillo');
   if (selPas) {
     const vP = selPas.value;
     selPas.innerHTML = '<option value="">-- SELECCIONAR --</option>' +
@@ -617,7 +641,7 @@ function actualizarSelectsRacks() {
     if (vP) selPas.value = vP;
   }
   // Rack AIB
-  const aibRacks = catRacks.filter(r => r.TIPO === 'AIB');
+  const aibRacks = unicos.filter(r => r.TIPO === 'AIB');
   const selRAIB  = document.getElementById('aib-rack');
   if (selRAIB) {
     selRAIB.innerHTML = '<option value="">-- SELECCIONAR --</option>' +
@@ -626,12 +650,21 @@ function actualizarSelectsRacks() {
 }
 
 function cargarRacksPorPasillo(selRackId, selPasilloId) {
-  const pasillo  = document.getElementById(selPasilloId).value;
-  const selRack  = document.getElementById(selRackId);
+  const pasillo = document.getElementById(selPasilloId).value;
+  const selRack = document.getElementById(selRackId);
   if (!selRack || !pasillo) return;
   const filtrados = catRacks.filter(r => r.PASILLO === pasillo);
+  if (!filtrados.length) {
+    selRack.innerHTML = '<option value="">-- SIN RACKS EN ESTE PASILLO --</option>';
+    return;
+  }
   selRack.innerHTML = '<option value="">-- SELECCIONAR RACK --</option>' +
-    filtrados.map(r => `<option value="${r.N_RACK}">${r.N_RACK} – Cap: ${r.CAPACIDAD_MAX||'?'} tub</option>`).join('');
+    filtrados.map(r => {
+      const nRack = r.N_RACK || r.RACK || '';
+      const cap   = r.CAPACIDAD_MAX || '?';
+      const stock = r.STOCK_ACTUAL !== undefined ? ` | Stock: ${r.STOCK_ACTUAL}` : '';
+      return `<option value="${nRack}">${nRack} – Cap: ${cap}${stock}</option>`;
+    }).join('');
 }
 
 async function cargarRacksDespacho() {
@@ -1097,6 +1130,19 @@ async function actualizarCola() {
       <div class="sync-dot dot-${r.estado}" title="${r.estado.toUpperCase()}"></div>
     </div>`).join('');
 }
+async function sincronizarYRefrescar() {
+  if (!window.App) return;
+  if (!navigator.onLine) { mostrarToast('SIN CONEXIÓN. CONECTE AL WI-FI.'); return; }
+  mostrarToast('🔄 SINCRONIZANDO Y ACTUALIZANDO...');
+  try {
+    await window.App.sync.sincronizar();
+    await window.App.catalogo.sincronizacionCompleta();
+    await cargarCatalogoLocal();
+    await cargarRacksDespacho();
+    mostrarToast('✔ TODO ACTUALIZADO');
+  } catch(e) { mostrarToast('✗ ERROR: '+e.message, 'error'); }
+}
+
 async function forzarSync() {
   if (!window.App) return;
   if (navigator.onLine) { await window.App.sync.sincronizar(); actualizarCola(); }
