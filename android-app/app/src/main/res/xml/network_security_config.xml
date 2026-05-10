@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ================================================================
+  NETWORK_SECURITY_CONFIG.XML
+  ================================================================
+  Permite a la app conectarse al dominio de Google Apps Script.
+  Android 9+ bloquea HTTP por defecto — esto lo configura para HTTPS.
+  ► NO necesitas editarlo salvo que cambies de proveedor de backend.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <!-- Google Apps Script Web App (para sincronización con el Sheet) -->
+        <domain includeSubdomains="true">script.google.com</domain>
+        <domain includeSubdomains="true">script.googleusercontent.com</domain>
+    </domain-config>
+</network-security-config>

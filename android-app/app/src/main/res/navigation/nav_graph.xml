@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ================================================================
+  NAV_GRAPH.XML — Grafo de navegación (Navigation Component)
+  ================================================================
+  Define los 4 fragments principales y cómo se conectan.
+  El fragment de inicio (app:startDestination) es el Plano.
+
+  ► Para agregar una pantalla nueva:
+    1. Agrega un <fragment> aquí
+    2. Agrega un <action> para navegar hacia él
+    3. Crea el Fragment.kt y su layout XML
+    4. Agrégalo al menú bottom_nav_menu.xml
+-->
+<navigation
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/planoFragment">
+
+    <!-- PANTALLA 1: Plano 2D del terreno -->
+    <fragment
+        android:id="@+id/planoFragment"
+        android:name="com.laguna.zapotal.ui.plano.PlanoFragment"
+        android:label="Plano" />
+
+    <!-- PANTALLA 2: Inventario completo (lista editable) -->
+    <fragment
+        android:id="@+id/inventarioFragment"
+        android:name="com.laguna.zapotal.ui.inventario.InventarioFragment"
+        android:label="Inventario" />
+
+    <!-- PANTALLA 3: Búsqueda por casing o AIB -->
+    <fragment
+        android:id="@+id/busquedaFragment"
+        android:name="com.laguna.zapotal.ui.inventario.BusquedaFragment"
+        android:label="Búsqueda" />
+
+    <!-- PANTALLA 4: Estado de sync con Google Sheets -->
+    <fragment
+        android:id="@+id/syncFragment"
+        android:name="com.laguna.zapotal.ui.sync.SyncFragment"
+        android:label="Sincronización" />
+
+</navigation>

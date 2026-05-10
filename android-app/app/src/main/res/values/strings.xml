@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ================================================================
+  STRINGS.XML — Textos de la app
+  ================================================================
+  ► Para cambiar cualquier texto: modifícalo aquí.
+  ► Para soporte multi-idioma: crea res/values-en/strings.xml
+-->
+<resources>
+    <!-- Nombre de la app (aparece en el lanzador del teléfono) -->
+    <string name="app_name">Laguna Zapotal</string>
+
+    <!-- Navegación inferior -->
+    <string name="nav_plano">Plano</string>
+    <string name="nav_inventario">Inventario</string>
+    <string name="nav_busqueda">Búsqueda</string>
+    <string name="nav_sync">Sync</string>
+
+    <!-- Tabs de búsqueda -->
+    <string name="tab_casing">Casing</string>
+    <string name="tab_aib">Equipos AIB</string>
+
+    <!-- Etiquetas de formularios -->
+    <string name="hint_medida">Diámetro / Medida  (ej: 9⅝, 7, 5½)</string>
+    <string name="hint_peso">Peso en lb/ft  (ej: 47, 29, 53.5)</string>
+    <string name="hint_modelo">Modelo AIB  (ej: GN-60HP, Series A)</string>
+    <string name="hint_nserie">N° de Serie  (ej: SN-2024-0341)</string>
+
+    <!-- Estados -->
+    <string name="estado_libre">Libre</string>
+    <string name="estado_parcial">Parcial</string>
+    <string name="estado_lleno">Lleno</string>
+    <string name="estado_en_uso">En uso</string>
+    <string name="estado_mantenimiento">Mantenimiento</string>
+
+    <!-- Mensajes -->
+    <string name="sin_resultados_casing">Sin resultados — prueba con otro diámetro o peso</string>
+    <string name="sin_resultados_aib">Sin resultados — prueba con otro modelo o N° serie</string>
+    <string name="sincronizando">Sincronizando con Google Sheets…</string>
+    <string name="sin_conexion">Sin conexión — datos guardados localmente</string>
+    <string name="selecciona_rack">Selecciona un rack para ver detalles</string>
+</resources>

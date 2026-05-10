@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ================================================================
+  BOTTOM_NAV_MENU.XML — Ítems de la barra de navegación inferior
+  ================================================================
+  ► Para agregar una pantalla: agrega un <item> aquí y su
+    fragment correspondiente en nav_graph.xml
+-->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Tab 1: Plano 2D del terreno -->
+    <item
+        android:id="@+id/planoFragment"
+        android:icon="@android:drawable/ic_menu_mapmode"
+        android:title="@string/nav_plano" />
+
+    <!-- Tab 2: Inventario completo -->
+    <item
+        android:id="@+id/inventarioFragment"
+        android:icon="@android:drawable/ic_menu_agenda"
+        android:title="@string/nav_inventario" />
+
+    <!-- Tab 3: Búsqueda por casing/AIB -->
+    <item
+        android:id="@+id/busquedaFragment"
+        android:icon="@android:drawable/ic_menu_search"
+        android:title="@string/nav_busqueda" />
+
+    <!-- Tab 4: Estado de sincronización -->
+    <item
+        android:id="@+id/syncFragment"
+        android:icon="@android:drawable/ic_popup_sync"
+        android:title="@string/nav_sync" />
+
+</menu>

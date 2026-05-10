@@ -1,0 +1,103 @@
+// ================================================================
+// BUILD.GRADLE — Nivel APP (app/build.gradle)
+// ================================================================
+// Aquí se declaran TODAS las dependencias de la app Android.
+// ► Si cambias versiones, hazlo de forma consistente (Room, Kotlin, etc.)
+
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'kotlin-kapt'  // Necesario para Room (genera código en compilación)
+}
+
+android {
+    // ── IDENTIFICACIÓN DE LA APP ─────────────────────────────────
+    namespace         'com.laguna.zapotal'
+    compileSdk        34   // SDK de compilación — usa el más reciente disponible
+
+    defaultConfig {
+        applicationId "com.laguna.zapotal"  // ◄ ID único en Google Play (no cambiar una vez publicada)
+        minSdk         26                   // Android 8.0 mínimo
+        targetSdk      34
+        versionCode    1                    // ◄ Incrementar en cada release (número entero)
+        versionName    "1.0.0"              // ◄ Versión visible al usuario
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // Room: exportar esquema de BD para control de versiones
+        kapt {
+            arguments {
+                arg("room.schemaLocation", "$projectDir/schemas")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // ── RELEASE (producción) ──────────────────────────────
+            minifyEnabled   true    // Ofusca y reduce el APK
+            shrinkResources true    // Elimina recursos no usados
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            // ── DEBUG (desarrollo) ────────────────────────────────
+            applicationIdSuffix ".debug"   // Permite instalar debug y release a la vez
+            debuggable true
+        }
+    }
+
+    // ── OPCIONES DE COMPILACIÓN ───────────────────────────────────
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    // Habilita ViewBinding (acceso a vistas sin findViewById)
+    buildFeatures {
+        viewBinding true
+    }
+}
+
+dependencies {
+    // ── CORE ANDROID ─────────────────────────────────────────────
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+
+    // ── NAVEGACIÓN (Bottom Navigation entre pantallas) ────────────
+    implementation 'androidx.navigation:navigation-fragment-ktx:2.7.6'
+    implementation 'androidx.navigation:navigation-ui-ktx:2.7.6'
+
+    // ── ROOM (base de datos local SQLite — funciona OFFLINE) ──────
+    // Room permite guardar todos los datos en el teléfono sin internet.
+    implementation 'androidx.room:room-runtime:2.6.1'
+    implementation 'androidx.room:room-ktx:2.6.1'     // Soporte corrutinas
+    kapt           'androidx.room:room-compiler:2.6.1' // Genera código DAO
+
+    // ── LIFECYCLE / VIEWMODEL ─────────────────────────────────────
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+
+    // ── COROUTINES (operaciones async sin bloquear la UI) ─────────
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+
+    // ── RETROFIT + GSON (llamadas HTTP al Google Sheet Web App) ───
+    // Solo se usa cuando hay conexión a internet para sincronizar.
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'  // Logs de red en debug
+
+    // ── WORKMANAGER (sync automático en background) ───────────────
+    implementation 'androidx.work:work-runtime-ktx:2.9.0'
+
+    // ── TESTS ─────────────────────────────────────────────────────
+    testImplementation         'junit:junit:4.13.2'
+    androidTestImplementation  'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation  'androidx.test.espresso:espresso-core:3.5.1'
+}

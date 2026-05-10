@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ================================================================
+  ITEM_RESULTADO_BUSQUEDA.XML — Tarjeta de resultado de búsqueda
+  ================================================================
+  Cada ítem muestra:
+    • Número de rack (título)
+    • Datos técnicos (medida+peso para casing / modelo+serie para AIB)
+    • UBICACIÓN exacta en el plano (pasillo, fila, posición)
+    • Punto de color indicando el estado (libre/parcial/lleno)
+
+  ► Para cambiar la apariencia de cada resultado: edita este archivo.
+  ► Para cambiar los datos mostrados: edita ResultadosAdapter.kt
+-->
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardElevation="1dp"
+    app:cardCornerRadius="8dp"
+    android:layout_marginBottom="8dp"
+    android:clickable="true"
+    android:focusable="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="center_vertical">
+
+        <!-- Punto de color indicador de estado (izquierda) -->
+        <View
+            android:id="@+id/iv_estado_dot"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:background="@drawable/dot_estado"
+            android:layout_marginEnd="12dp" />
+
+        <!-- Contenido principal -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <!-- Fila superior: número de rack + estado -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="4dp">
+
+                <!-- Número de rack (ej: R05) -->
+                <TextView
+                    android:id="@+id/tv_resultado_titulo"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/texto_primario" />
+
+                <!-- Chip de estado -->
+                <TextView
+                    android:id="@+id/tv_resultado_estado"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="10sp"
+                    android:textColor="#fff"
+                    android:background="@drawable/bg_chip_estado"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="2dp" />
+            </LinearLayout>
+
+            <!-- Datos técnicos del rack (medida+peso o modelo+serie) -->
+            <TextView
+                android:id="@+id/tv_resultado_detalle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textColor="@color/texto_primario"
+                android:layout_marginBottom="6dp" />
+
+            <!-- UBICACIÓN en el plano — destacada visualmente -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@drawable/bg_ubicacion"
+                android:padding="6dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tv_resultado_ubicacion"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="11sp"
+                    android:textColor="@color/azul_oscuro"
+                    android:lineSpacingExtra="2dp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Flecha indicando que es clickable -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="›"
+            android:textSize="22sp"
+            android:textColor="@color/texto_secundario"
+            android:layout_marginStart="8dp" />
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

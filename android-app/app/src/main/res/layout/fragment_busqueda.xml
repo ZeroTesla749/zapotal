@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ================================================================
+  FRAGMENT_BUSQUEDA.XML — Layout de la pantalla de búsqueda
+  ================================================================
+  Dos secciones separadas por tabs:
+    TAB 0 — Buscar Casing  (por diámetro/medida y peso)
+    TAB 1 — Buscar AIB     (por modelo y/o N° de serie)
+
+  Los resultados se muestran en un RecyclerView con la ubicación
+  exacta de cada rack en el plano.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/fondo_pantalla">
+
+    <!-- Header de la pantalla -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🔍 Búsqueda de Inventario"
+        android:textSize="17sp"
+        android:textStyle="bold"
+        android:textColor="@color/texto_primario"
+        android:padding="16dp"
+        android:background="@color/fondo_header" />
+
+    <!-- Tabs: Casing / AIB -->
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:tabMode="fixed"
+        app:tabGravity="fill"
+        app:tabIndicatorColor="@color/azul_principal"
+        app:tabSelectedTextColor="@color/azul_principal"
+        app:tabTextColor="@color/texto_secundario">
+
+        <!-- Tab 0: Casing -->
+        <com.google.android.material.tabs.TabLayout.Tab
+            android:id="@+id/tab_casing" />
+        <!-- Tab 1: AIB -->
+        <com.google.android.material.tabs.TabLayout.Tab
+            android:id="@+id/tab_aib" />
+    </com.google.android.material.tabs.TabLayout>
+
+    <!-- ScrollView para que todo sea scrollable en pantallas pequeñas -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- ══════════════════════════════════════════════════
+                 SECCIÓN CASING (visible en Tab 0)
+            ══════════════════════════════════════════════════ -->
+            <LinearLayout
+                android:id="@+id/sectionCasing"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:visibility="visible">
+
+                <!-- Card de filtros de casing -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardElevation="2dp"
+                    app:cardCornerRadius="8dp"
+                    android:layout_marginBottom="12dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Buscar Casing (Tubería)"
+                            android:textStyle="bold"
+                            android:textSize="13sp"
+                            android:textColor="@color/texto_primario"
+                            android:layout_marginBottom="12dp" />
+
+                        <!-- Campo: Diámetro / Medida -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="Diámetro / Medida  (ej: 9⅝, 7, 5½)"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                            android:layout_marginBottom="8dp">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etBuscarMedida"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="text"
+                                android:imeOptions="actionNext" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- Campo: Peso lb/ft -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="Peso  (ej: 47, 29, 53.5)"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                            android:layout_marginBottom="8dp">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etBuscarPeso"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="numberDecimal"
+                                android:imeOptions="actionSearch" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- Nota: ambos campos son independientes y opcionales -->
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="💡 Puedes buscar por uno o ambos campos a la vez"
+                            android:textSize="11sp"
+                            android:textColor="@color/texto_secundario"
+                            android:layout_marginBottom="10dp" />
+
+                        <!-- Botón limpiar -->
+                        <Button
+                            android:id="@+id/btnLimpiarCasing"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:text="Limpiar"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Contador de resultados casing -->
+                <TextView
+                    android:id="@+id/tvSinResultadosCasing"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Sin resultados — prueba con otro diámetro o peso"
+                    android:textSize="12sp"
+                    android:textColor="@color/texto_secundario"
+                    android:gravity="center"
+                    android:padding="20dp"
+                    android:visibility="gone" />
+
+                <!-- Lista de resultados casing -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvResultadosCasing"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+            </LinearLayout><!-- fin sectionCasing -->
+
+
+            <!-- ══════════════════════════════════════════════════
+                 SECCIÓN AIB (visible en Tab 1)
+            ══════════════════════════════════════════════════ -->
+            <LinearLayout
+                android:id="@+id/sectionAIB"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:visibility="gone">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardElevation="2dp"
+                    app:cardCornerRadius="8dp"
+                    android:layout_marginBottom="12dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Buscar Equipo AIB (Bombeo)"
+                            android:textStyle="bold"
+                            android:textSize="13sp"
+                            android:textColor="@color/texto_primario"
+                            android:layout_marginBottom="12dp" />
+
+                        <!-- Campo: Modelo AIB -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="Modelo  (ej: GN-60HP, Series A)"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                            android:layout_marginBottom="8dp">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etBuscarModelo"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="text"
+                                android:imeOptions="actionNext" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- Campo: N° de Serie -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="N° de Serie  (ej: SN-2024-0341)"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                            android:layout_marginBottom="8dp">
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etBuscarNSerie"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="text"
+                                android:imeOptions="actionSearch" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- Nota de búsqueda cruzada -->
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="💡 Puedes buscar por modelo, N° serie, o ambos a la vez.\n   Dejar un campo vacío no lo filtra."
+                            android:textSize="11sp"
+                            android:textColor="@color/texto_secundario"
+                            android:layout_marginBottom="10dp" />
+
+                        <Button
+                            android:id="@+id/btnLimpiarAIB"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:text="Limpiar"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:id="@+id/tvSinResultadosAIB"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Sin resultados — prueba con otro modelo o N° serie"
+                    android:textSize="12sp"
+                    android:textColor="@color/texto_secundario"
+                    android:gravity="center"
+                    android:padding="20dp"
+                    android:visibility="gone" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvResultadosAIB"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+            </LinearLayout><!-- fin sectionAIB -->
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

@@ -1,0 +1,14 @@
+// ================================================================
+// BUILD.GRADLE — Nivel PROYECTO (raíz del proyecto Android)
+// ================================================================
+// Este archivo configura los plugins disponibles para todos los módulos.
+// Normalmente NO necesitas editarlo.
+
+plugins {
+    // Plugin de Android — versión debe coincidir con Android Studio instalado
+    id 'com.android.application' version '8.2.0' apply false
+    // Plugin de Kotlin — debe coincidir con la versión en libs.versions.toml
+    id 'org.jetbrains.kotlin.android' version '1.9.10' apply false
+    // Kapt — necesario para Room (procesador de anotaciones)
+    id 'org.jetbrains.kotlin.kapt' version '1.9.10' apply false
+}

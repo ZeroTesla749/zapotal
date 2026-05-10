@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ================================================================
+  COLORS.XML — Paleta de colores de la app
+  ================================================================
+  ► Para cambiar la paleta de colores de toda la app: edita aquí.
+  ► Los colores de estado (libre/parcial/lleno) están al final.
+-->
+<resources>
+    <!-- Colores principales de la app -->
+    <color name="azul_principal">#1A3A5C</color>   <!-- Header, tabs activos, botones -->
+    <color name="azul_oscuro">#0F2440</color>
+    <color name="azul_claro">#3A7BD5</color>
+
+    <!-- Fondos -->
+    <color name="fondo_pantalla">#F4F2EE</color>
+    <color name="fondo_header">#FFFFFF</color>
+    <color name="fondo_card">#FFFFFF</color>
+
+    <!-- Textos -->
+    <color name="texto_primario">#1A1A2E</color>
+    <color name="texto_secundario">#6B7280</color>
+
+    <!-- Estados de racks -->
+    <color name="estado_libre">#2DAA66</color>       <!-- Verde -->
+    <color name="estado_parcial">#E09000</color>     <!-- Naranja -->
+    <color name="estado_lleno">#E04040</color>       <!-- Rojo -->
+    <color name="estado_mantenimiento">#9C5AA0</color> <!-- Púrpura (AIB en mantenimiento) -->
+
+    <!-- Material Design requeridos -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>

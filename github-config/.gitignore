@@ -1,0 +1,39 @@
+# ================================================================
+# .GITIGNORE — Laguna Zapotal
+# ================================================================
+# Archivos que NO se suben a GitHub.
+# La app funciona igual sin estos archivos — son locales de compilación.
+
+# ── ANDROID STUDIO ───────────────────────────────────────────────
+.idea/
+*.iml
+.DS_Store
+/local.properties      # Contiene rutas locales del SDK — no compartir
+
+# ── GRADLE (compilación) ─────────────────────────────────────────
+.gradle/
+build/
+android-app/.gradle/
+android-app/build/
+android-app/app/build/
+
+# ── APK / AAB (binarios — no van al repo, son pesados) ───────────
+*.apk
+*.aab
+*.ap_
+
+# ── KEYSTORE (clave de firma — NUNCA subir al repositorio) ────────
+# Si subes el keystore, cualquiera puede publicar apps con tu identidad
+*.jks
+*.keystore
+keystore.properties
+
+# ── SCHEMAS DE ROOM (sí se suben — sirven para rastrear migraciones)
+# android-app/app/schemas/   ← descomenta para NO subirlos
+
+# ── LOGS Y TEMPORALES ────────────────────────────────────────────
+*.log
+*.tmp
+
+# ── GOOGLE APPS SCRIPT — archivo .clasp.json (credenciales) ──────
+.clasp.json

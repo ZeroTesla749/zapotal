@@ -1,0 +1,27 @@
+// ================================================================
+// SETTINGS.GRADLE — Configuración del proyecto Android
+// ================================================================
+// Define el nombre del proyecto y los repositorios de dependencias.
+// ► Cambia "LagunaZapotal" si quieres otro nombre de proyecto.
+
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+// Nombre del proyecto que aparece en Android Studio
+rootProject.name = "LagunaZapotal"
+
+// Módulo principal de la app
+include ':app'
